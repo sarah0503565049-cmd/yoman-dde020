@@ -5,6 +5,7 @@ import { TABS, loadScreen } from './routes.js';
 import { Page, Empty, Notice, Loader, OverlayHost, Boundary } from './ui/bits.js';
 import { Icon } from './ui/icons.js';
 
+
 const modules = new Map();
 
 function screenEntry(file) {
@@ -48,6 +49,7 @@ function ScreenHost({ r }) {
   </${Boundary}>`;
 }
 
+
 function TabBar({ active }) {
   const onTap = (e, t) => {
     if (t.id !== active) return; // מעבר רגיל דרך הקישור
@@ -56,14 +58,15 @@ function TabBar({ active }) {
     if (main) main.scrollTo({ top: 0, behavior: 'smooth' });
   };
   return html`<nav class="tabbar" aria-label="ניווט ראשי">
-    <div class="tabbar-in">
-      ${TABS.map((t) => html`<a key=${t.id} class=${'tab' + (t.id === active ? ' is-active' : '')} href=${'#' + t.path}
+    <div class=${'tabbar-in' + (TABS.some((t) => t.wide) ? ' has-wide' : '')}>
+      ${TABS.map((t) => html`<a key=${t.id} class=${'tab' + (t.id === active ? ' is-active' : '') + (t.wide ? ' is-wide-only' : '')} href=${'#' + t.path}
           aria-current=${t.id === active ? 'page' : undefined} onClick=${(e) => onTap(e, t)}>
         <span class="tab-pill"><${Icon} name=${t.icon} size=${26} /><span class="tab-label">${t.label}</span></span>
       </a>`)}
     </div>
   </nav>`;
 }
+
 
 function App() {
   const r = useRoute();
@@ -103,6 +106,7 @@ async function boot() {
 }
 
 boot();
+
 
 const secure = location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname);
 if ('serviceWorker' in navigator && secure) {

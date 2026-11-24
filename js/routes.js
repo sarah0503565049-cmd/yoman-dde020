@@ -20,6 +20,11 @@ export const ROUTES = [
   { path: '/item/new', file: 'item-edit', title: 'פריט', em: 'חדש', backTo: '/items' },
   { path: '/item/:id', file: 'item-edit', title: 'עריכת', em: 'פריט', backTo: '/items' },
 
+  { path: '/reports', file: 'reports', title: 'דוחות', backTo: '/more' },
+  { path: '/reports/income', file: 'report-income', title: 'דוח', em: 'הכנסות', backTo: '/reports' },
+  { path: '/reports/sales', file: 'report-sales', title: 'דוח', em: 'מכירות', backTo: '/reports' },
+  { path: '/reports/print', file: 'report-print', title: 'תצוגה', em: 'להדפסה', backTo: '/reports' },
+
   { path: '/more', file: 'more', tab: 'more', title: 'עוד' },
   { path: '/_ui', file: 'ui-kit', title: 'ערכת', em: 'העיצוב', backTo: '/more' },
 ];
@@ -29,6 +34,7 @@ export const TABS = [
   { id: 'cal', path: '/cal', label: 'יומן', icon: 'calendar' },
   { id: 'clients', path: '/clients', label: 'לקוחות', icon: 'users' },
   { id: 'more', path: '/more', label: 'עוד', icon: 'more' },
+  { id: 'reports', path: '/reports', label: 'דוחות', icon: 'chart', wide: true },
 ];
 
 export function loadScreen(file) {

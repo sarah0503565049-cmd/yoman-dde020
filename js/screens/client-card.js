@@ -15,13 +15,14 @@ export default function ClientCard({ params }) {
   const { data, loading } = useData(async (s) => {
     const client = await s.getClient(id);
     const appts = client ? await s.listAppointments({ clientId: id, includeCancelled: true }) : [];
-    return { client, appts };
+    const products = new Set((await s.listServices({ includeInactive: true })).filter((x) => x.kind === 'product').map((x) => x.id));
+    return { client, appts, products };
   }, [id]);
 
   if (!data) {
     return html`<${Page} title="כרטיס" em="לקוח/ה" back backTo="/clients">${loading && html`<${Loader} />`}</${Page}>`;
   }
-  const { client, appts } = data;
+  const { client, appts, products } = data;
   if (!client || client.deletedAt) {
     return html`<${Page} title="כרטיס" em="לקוח/ה" back backTo="/clients">
       <${Empty} text="הלקוח/ה לא נמצא/ה" />
@@ -36,7 +37,7 @@ export default function ClientCard({ params }) {
   const visits = past.filter((a) => isVisit(a));
   const discount = visits.reduce((s, a) => s + (a.status === 'free' ? 0 : apptDiscount(a)), 0);
   const next = lastNextStep(appts, today);
-  const summary = visitSummary(appts, today);
+  const summary = visitSummary(appts, today, { skip: (it) => products.has(it.serviceId) });   // סיכום טיפולים: בלי מוצרים
   const digits = String(client.phone || '').replace(/\D/g, '');
 
   return html`<${Page} title="כרטיס" em="לקוח/ה" back backTo="/clients">

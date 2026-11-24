@@ -95,7 +95,10 @@ export default function More() {
   };
 
   return html`<${Page} title="עוד">
-    <${List}><${Row} title="פריטים" href="/items" chevron /></${List}>
+    <${List}>
+      <${Row} title="דוחות" sub="הכנסות ומכירות, לפי יום, שבוע, חודש או טווח" href="/reports" chevron />
+      <${Row} title="פריטים" href="/items" chevron />
+    </${List}>
     ${!settings ? html`<${Loader} />` : html`
       <${Section} title="שעות היומן"><${DiaryHours} settings=${settings} /></${Section}>
 

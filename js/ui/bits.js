@@ -206,8 +206,9 @@ export function Dot({ color, size = 12, class: cls }) {
 }
 
 export function fmtMoney(value) {
-  const n = Number(value) || 0;
-  return `${n.toLocaleString('he-IL', { maximumFractionDigits: 2 })} ₪`;
+  const n = Math.round((Number(value) || 0) * 100) / 100;
+  const d = Number.isInteger(n) ? 0 : 2;
+  return `${n.toLocaleString('he-IL', { minimumFractionDigits: d, maximumFractionDigits: 2 })} ₪`;
 }
 
 export function Money({ value, class: cls }) {

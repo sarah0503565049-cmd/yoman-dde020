@@ -4,6 +4,7 @@ import {
   firstVisitIds as modelFirstVisitIds, normalizePhone, apptTotal, FREE_REASONS, validateAppointment, validateBlock,
 } from '../lib/model.js';
 import { buildSeed } from './seed.js';
+import { addHistory } from './seed-history.js';
 
 export const STORAGE_KEY = 'torim.v1';
 const BAK_KEY = 'torim.v1.bak';
@@ -45,12 +46,14 @@ function logAudit(db, action, apptId, from, to, detail) {
   db.audit.push({ at: nowIso(), action, apptId, from, to, detail });
 }
 
-export function createStore({ storage, today } = {}) {
+export function createStore({ storage, today, history = false } = {}) {
   const subscribers = new Set();
   const store = () => storage || globalThis.localStorage;
 
   function seed() {
-    return buildSeed(today || todayYmd());
+    const db = buildSeed(today || todayYmd());
+    if (history) addHistory(db, today || todayYmd());
+    return db;
   }
 
   function read() {
@@ -70,6 +73,9 @@ export function createStore({ storage, today } = {}) {
     if (!db || typeof db !== 'object' || db.version !== 1) {
       try { st.setItem(BAK_KEY, raw); } catch { /* גיבוי נכשל, ממשיכים */ }
       db = seed();
+      st.setItem(STORAGE_KEY, JSON.stringify(db));
+    } else if (history && db.settings && db.settings.demo && !db.historyAdded) {
+      addHistory(db, today || todayYmd());
       st.setItem(STORAGE_KEY, JSON.stringify(db));
     }
     return db;
@@ -381,6 +387,6 @@ export function createStore({ storage, today } = {}) {
 
 let singleton = null;
 export function getStore() {
-  if (!singleton) singleton = createStore({ storage: window.localStorage });
+  if (!singleton) singleton = createStore({ storage: window.localStorage, history: true });
   return singleton;
 }

@@ -62,7 +62,7 @@ export function returnWeeksOf(client, settings) {
   return Number(client && client.returnWeeks) || Number(settings && settings.returnWeeks) || 4;
 }
 
-export function visitSummary(appts, today = null) {
+export function visitSummary(appts, today = null, { skip = null } = {}) {
   const visits = (appts || [])
     .filter((a) => isVisit(a) && (!today || a.date <= today))
     .slice()
@@ -70,6 +70,7 @@ export function visitSummary(appts, today = null) {
   const map = new Map();
   for (const a of visits) {
     for (const it of a.items || []) {
+      if (skip && skip(it)) continue;
       const key = it.serviceId || `name:${it.name}`;
       const row = map.get(key) || { key, name: it.name, count: 0, lastDate: a.date };
       row.count += 1;

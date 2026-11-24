@@ -1,15 +1,18 @@
 
-import { html } from '../../vendor/preact-htm.js';
+import { html, useState } from '../../vendor/preact-htm.js';
 import {
   Page, Hero, Section, Button, IconButton, Tile, Tiles, Money, Notice, List, Row, Dot, StatusBadge, Tag, Card, Empty,
-  toast, confirmSheet,
+  toast, confirmSheet, fmtMoney,
 } from '../ui/bits.js';
+import { BarChart, yearMark, Swatch } from '../ui/charts.js';
+import { reportHref } from '../ui/period.js';
+import { incomeRows, monthlyIncome } from '../lib/reports.js';
 import { Icon } from '../ui/icons.js';
 import { useData, useNow } from '../ui/hooks.js';
 import { getStore } from '../data/store.js';
 import { addDays, fmtDate, fmtDateLong, fmtDayMonth, fmtTime } from '../lib/time.js';
 import {
-  apptEnd, apptTotal, apptVisual, callsDue, firstVisitIds, isActive, needsNextAppointment, paidAmount,
+  apptEnd, apptTotal, apptVisual, callsDue, firstVisitIds, isActive, needsNextAppointment,
 } from '../lib/model.js';
 
 const range = (a) => `${fmtTime(a.startMin)} עד ${fmtTime(apptEnd(a))}`;
@@ -21,6 +24,34 @@ function daysAgo(n) {
   if (n === 1) return 'לפני יום';
   if (n === 2) return 'לפני יומיים';
   return `לפני ${n} ימים`;
+}
+
+function MonthChart({ appts, today }) {
+  const [hover, setHover] = useState(null);
+  const months = monthlyIncome(appts, today);
+  const cur = months.find((m) => m.current);
+  const shown = months.find((m) => m.key === hover) || cur;
+  const anyBooked = months.some((m) => m.booked > 0);
+  const bars = months.map((m, i) => ({
+    key: m.key, short: m.short, narrow: String(Number(m.key.slice(5))), value: m.paid, booked: m.booked, current: m.current,
+    year: yearMark(months, i),
+    href: reportHref('/reports/income', { p: 'month', d: m.from }),
+    aria: `${m.label}: הכנסות ${fmtMoney(m.paid)}${m.booked > 0 ? `, כבר נקבע ${fmtMoney(m.booked)}` : ''}`,
+  }));
+  return html`<${Card} class="mc">
+    <div class="mc-head">
+      <span class="mc-title">הכנסות · ${shown.label}${shown.current ? ' עד היום' : ''}</span>
+      <a class="mc-link" href="#/reports">לדוחות<${Icon} name="chevronEnd" size=${18} /></a>
+    </div>
+    <div class="mc-vals">
+      <span class="mc-num">${fmtMoney(shown.paid)}</span>
+      ${shown.booked > 0 && html`<span class="mc-booked">+ ${fmtMoney(shown.booked)} כבר נקבע</span>`}
+    </div>
+    <${BarChart} bars=${bars} height=${112} active=${hover} onActive=${setHover} ariaLabel="הכנסות לפי חודש, 12 החודשים האחרונים" />
+    ${anyBooked && html`<div class="mc-legend" aria-hidden="true">
+      <span><${Swatch} /> הכנסות</span><span><${Swatch} booked /> כבר נקבע (תורים שעוד לא שולמו)</span>
+    </div>`}
+  </${Card}>`;
 }
 
 function scrollToId(id) {
@@ -47,11 +78,12 @@ export default function Home() {
     return { settings, appts, clients };
   }, []);
 
+  const brand = html`<div class="home-brand"><img class="home-logo" src="img/logo.png" alt="Sarah B Cosmetics" width="500" height="500" decoding="async" /></div>`;
   const hero = html`<${Hero} image="img/clinic-chair.jpg" title="היום" sub=${fmtDateLong(today)}
     actions=${data && data.settings.demo && html`<${Tag} tone="gold">נתוני דוגמה</${Tag}>`} />`;
   const newBtn = html`<${Button} href=${'/appt/new?date=' + today}>תור חדש</${Button}>`;
 
-  if (!data) return html`<${Page}>${hero}${newBtn}</${Page}>`;
+  if (!data) return html`<${Page} class="home">${brand}${hero}${newBtn}</${Page}>`;
 
   const { settings, appts } = data;
   const clients = new Map(data.clients.map((c) => [c.id, c]));
@@ -60,7 +92,7 @@ export default function Home() {
   const tomorrow = addDays(today, 1);
 
   const todays = appts.filter((a) => a.date === today && isActive(a));
-  const income = todays.reduce((s, a) => s + paidAmount(a), 0);
+  const income = incomeRows(appts, null, { from: today, to: today }).reduce((s, r) => s + r.total, 0);
   const pending = appts.filter((a) => a.status === 'pending' && a.date >= today);
   const unpaid = appts.filter((a) => apptVisual(a, today, min, false).unpaid);
   const calls = callsDue(appts, clients, today, tomorrow, min);
@@ -89,12 +121,14 @@ export default function Home() {
   };
 
   return html`<${Page} class="home">
+    ${brand}
     ${hero}
+    <${MonthChart} appts=${appts} today=${today} />
     ${newBtn}
 
     <${Tiles}>
       <${Tile} label="תורים היום" value=${todays.length} />
-      <${Tile} label="הכנסות היום" value=${html`<${Money} value=${income} />`} />
+      <${Tile} label="הכנסות היום" value=${html`<${Money} value=${income} />`} href=${reportHref('/reports/income', { p: 'day', d: today })} />
       <${Tile} label="ממתינים לאישור" value=${pending.length} onClick=${pending.length ? () => scrollToId('pending') : undefined} />
       <${Tile} label="לא שולמו" value=${unpaid.length} onClick=${unpaid.length ? () => scrollToId('unpaid') : undefined} />
     </${Tiles}>

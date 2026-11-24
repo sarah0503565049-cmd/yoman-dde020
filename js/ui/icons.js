@@ -45,6 +45,9 @@ export const ICONS = {
     html`<text x="12" y="16.1" text-anchor="middle" font-size="11.5" font-weight="700" font-family="Assistant, sans-serif" fill="currentColor" stroke="none">₪</text>`,
   ],
   mic: [P('M9 6a3 3 0 0 1 6 0v5.5a3 3 0 0 1-6 0z'), P('M5.5 11a6.5 6.5 0 0 0 13 0'), P('M12 17.5V21'), P('M8.75 21h6.5')],
+  chart: [P('M4 20.5h16'), P('M6.5 20.5v-6'), P('M11 20.5V9'), P('M15.5 20.5v-8.5'), P('M20 20.5V5.5')],
+  download: [P('M12 4v11'), P('M7.5 10.5 12 15l4.5-4.5'), P('M4.5 19.5h15')],
+  print: [P('M7 8.5V4h10v4.5'), html`<rect x="4" y="8.5" width="16" height="8" rx="2" />`, P('M7.5 14h9v6h-9z')],
 };
 
 export function Icon({ name, size = 24, fill = false, class: cls = '', title }) {

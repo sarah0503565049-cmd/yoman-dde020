@@ -8,6 +8,8 @@ const CORE = [
   'css/calendar.css',
   'css/forms.css',
   'css/lists.css',
+  'css/cards.css',
+  'css/reports.css',
   'vendor/preact-htm.js',
   'js/app.js',
   'js/router.js',
@@ -21,6 +23,7 @@ const CORE = [
   'fonts/Assistant-700.ttf',
   'icons/icon-192.png',
   'img/clinic-chair.jpg',
+  'img/logo.png',
 ];
 
 self.addEventListener('install', (e) => {
