@@ -1,0 +1,40 @@
+
+
+.ac-name {
+  display: flex;
+  align-items: center;
+  gap: var(--g1);
+  min-height: 44px;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--espresso);
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.ac-name-text { flex: 1; min-width: 0; }
+.ac-name-chev { flex: none; display: inline-flex; color: var(--ink); }
+.ac-phone { display: flex; align-items: center; gap: var(--g1); }
+.ac-phone-num { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; color: var(--ink); text-align: start; }
+.ac-when { display: flex; flex-direction: column; gap: 2px; }
+.ac-when-day { font-weight: 700; color: var(--espresso); }
+.ac-when-time { font-size: var(--fs-sub); color: var(--ink); font-variant-numeric: tabular-nums; }
+.ac-items { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.ac-item { display: flex; align-items: center; gap: var(--g2); padding: var(--g1) 0; border-bottom: 1px solid var(--line); }
+.ac-item-name { flex: 1; min-width: 0; color: var(--espresso); overflow-wrap: anywhere; }
+.ac-total { display: flex; align-items: center; justify-content: space-between; gap: var(--g2); font-weight: 700; color: var(--espresso); }
+.ac-sub-line { display: flex; align-items: center; justify-content: space-between; gap: var(--g2); font-size: var(--fs-sub); color: var(--ink); }
+.ac-badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--g1); }
+.ac-note { color: var(--espresso); white-space: pre-wrap; text-align: start; overflow-wrap: anywhere; }
+.ac-paid { font-weight: 700; color: var(--espresso); text-align: start; font-variant-numeric: tabular-nums; }
+.ac-actions { display: flex; flex-direction: column; gap: var(--g2); }
+.ac-notes { display: flex; flex-direction: column; gap: var(--g2); }
+.ac-callbtn { margin-top: var(--g1); }
+
+.till-lines { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.till-total { display: flex; align-items: center; justify-content: space-between; gap: var(--g2); font-weight: 700; color: var(--espresso); }
+.till-done { display: flex; flex-direction: column; gap: var(--g2); }
+
+.be-form { display: flex; flex-direction: column; gap: var(--g3); }
+.be-danger { margin-top: var(--g1); }
+.till-free { align-self: flex-start; min-height: 48px; display: inline-flex; align-items: center; }
