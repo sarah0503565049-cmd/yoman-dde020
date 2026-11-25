@@ -98,6 +98,7 @@ export default function More() {
     <${List}>
       <${Row} title="דוחות" sub="הכנסות ומכירות, לפי יום, שבוע, חודש או טווח" href="/reports" chevron />
       <${Row} title="פריטים" href="/items" chevron />
+      <${Row} title="הודעות אוטומטיות" sub="מה כתוב בכל הודעה ללקוחות, ומתי היא יוצאת" href="/messages" chevron />
     </${List}>
     ${!settings ? html`<${Loader} />` : html`
       <${Section} title="שעות היומן"><${DiaryHours} settings=${settings} /></${Section}>

@@ -5,17 +5,25 @@ import {
 } from '../lib/model.js';
 import { expandBlocks } from '../lib/recur.js';
 import { publicMode, slotLength, freeStarts, bookableDays, cleanName, sameName } from '../lib/booking.js';
-import { buildSeed, SERVICE_PATCH } from './seed.js';
+import { buildSeed, SERVICE_PATCH, NAME_PATCH } from './seed.js';
 import { addHistory } from './seed-history.js';
 
 function patchServices(db) {
-  if (!db.settings || !db.settings.demo || db.servicePatch === SERVICE_PATCH.id) return false;
-  for (const p of SERVICE_PATCH.rows) {
-    const s = (db.services || []).find((x) => x.id === p.id);
-    if (s && Object.entries(p.was).every(([k, v]) => s[k] === v)) Object.assign(s, p.set);
+  if (!db.settings || !db.settings.demo) return false;
+  let dirty = false;
+  for (const [key, patch] of [['servicePatch', SERVICE_PATCH], ['namePatch', NAME_PATCH]]) {
+    if (db[key] === patch.id) continue;
+    for (const p of patch.rows) {
+      const s = (db.services || []).find((x) => x.id === p.id);
+      if (s && Object.entries(p.was).every(([k, v]) => s[k] === v)) Object.assign(s, p.set);
+    }
+    if (patch.categories && Array.isArray(db.settings.categories)) {
+      db.settings.categories = db.settings.categories.map((c) => patch.categories[c] || c);
+    }
+    db[key] = patch.id;
+    dirty = true;
   }
-  db.servicePatch = SERVICE_PATCH.id;
-  return true;
+  return dirty;
 }
 
 export const STORAGE_KEY = 'torim.v1';
@@ -340,7 +348,6 @@ export function createStore({ storage, today, history = false } = {}) {
       write(db);
       return clone(a);
     },
-
 
     async bookingDays(serviceId, { config, now = new Date() } = {}) {
       const db = read();

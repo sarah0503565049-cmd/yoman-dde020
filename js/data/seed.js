@@ -13,17 +13,17 @@ const SERVICE_ROWS = [
   ['טיפול בחודרנית', 'חודרנית', 'פדיקור פרא-רפואי', 'treatment', 410, 60, '#EE8ACF'],
   ['אורטונקסיה - יישור ציפורן חודרנית', 'אורטונקסיה', 'פדיקור פרא-רפואי', 'treatment', 550, 75, '#F0705A'],
   ['הסרת יבלות ויראליות בשיטת פלזמה', 'יבלות', 'פדיקור פרא-רפואי', 'treatment', 390, 60, '#8ED6D0'],
-  ['פדיקור טבעי', 'טבעי', 'פדיקור מפנק', 'treatment', 320, 60, '#D58BE0'],
+  ['פדיקור טבעי', 'טבעי', 'פדיקור טבעי', 'treatment', 320, 60, '#D58BE0'],
   ['תרמותרפיה - טיפול פרפין', 'פרפין', 'טיפולי רגליים', 'treatment', 320, 45, '#F4D94E'],
   ['בנייה טיפולית לציפורן', 'בנייה', 'טיפולי רגליים', 'treatment', 550, 60, '#DDE9A8'],
   ['עיסוי ניקוז לימפטי לרגליים', 'לימפטי', 'טיפולי רגליים', 'treatment', 420, 60, '#2E9E5B'],
   ['רפלקסולוגיה', 'רפלקסולוגיה', 'טיפולי רגליים', 'treatment', 420, 60, '#3D5BF0'],
   ['מניקור פרא-רפואי', 'מניקור', 'טיפולי ידיים', 'treatment', 280, 60, '#56606B'],
-  ['סרום נגד פטרת הציפורן', 'סרום', 'מוצרים למכירה', 'product', 130, 0, '#C9BBA6'],
-  ['משחה טבעית נגד פטרת העור', 'משחה', 'מוצרים למכירה', 'product', 140, 0, '#C9BBA6'],
-  ['טלק טיפול טבעי נגד פטרת', 'טלק', 'מוצרים למכירה', 'product', 180, 0, '#C9BBA6'],
-  ['סבון אנטיספטי טבעי', 'סבון', 'מוצרים למכירה', 'product', 120, 0, '#C9BBA6'],
-  ['ערכת גזירה', 'ערכה', 'מוצרים למכירה', 'product', 120, 0, '#C9BBA6'],
+  ['סרום נגד פטרת', 'סרום', 'מוצרים למכירה', 'product', 130, 0, '#C9BBA6'],
+  ['נדיבות בדרכים (משחה מרוכזת לטיפוח עור כף הרגל)', 'משחה', 'מוצרים למכירה', 'product', 140, 0, '#C9BBA6'],
+  ['טלק טיפולי טבעי נגד פטרת', 'טלק', 'מוצרים למכירה', 'product', 180, 0, '#C9BBA6'],
+  ['רגע של טוהר לרגליים (סבון שחור לשטיפת כפות הרגליים)', 'סבון', 'מוצרים למכירה', 'product', 120, 0, '#C9BBA6'],
+  ['ערכת טיפוח לציפורניים', 'ערכה', 'מוצרים למכירה', 'product', 120, 0, '#C9BBA6'],
 ];
 
 const CLIENT_NAMES = [
@@ -44,7 +44,7 @@ function buildSettings() {
     returnWeeks: 4,
     returnWeeks: 4,
     defaultView: 'week',
-    categories: ['פדיקור פרא-רפואי', 'פדיקור מפנק', 'טיפולי רגליים', 'טיפולי ידיים', 'מוצרים למכירה'],
+    categories: ['פדיקור פרא-רפואי', 'פדיקור טבעי', 'טיפולי רגליים', 'טיפולי ידיים', 'מוצרים למכירה'],
     demo: true,
     paymentMethods: ['מזומן', 'אשראי', 'העברה בנקאית', 'ביט', 'צ\'ק'],
     clinicHours: { 0: [...day], 1: [...day], 2: [{ from: 780, to: 1080 }], 3: [...day], 4: [...day], 5: [], 6: [] },
@@ -65,6 +65,19 @@ export const SERVICE_PATCH = {
     { id: 'svc-04', was: { durationMin: 150 }, set: { durationMin: 90, travelMin: 60 } },
     { id: 'svc-06', was: { durationMin: 60 }, set: { durationMin: 75 } },
   ],
+};
+
+export const NAME_PATCH = {
+  id: '2026-11-25-names',
+  rows: [
+    { id: 'svc-08', was: { category: 'פדיקור מפנק' }, set: { category: 'פדיקור טבעי' } },
+    { id: 'svc-14', was: { name: 'סרום נגד פטרת הציפורן' }, set: { name: 'סרום נגד פטרת' } },
+    { id: 'svc-15', was: { name: 'משחה טבעית נגד פטרת העור' }, set: { name: 'נדיבות בדרכים (משחה מרוכזת לטיפוח עור כף הרגל)' } },
+    { id: 'svc-16', was: { name: 'טלק טיפול טבעי נגד פטרת' }, set: { name: 'טלק טיפולי טבעי נגד פטרת' } },
+    { id: 'svc-17', was: { name: 'סבון אנטיספטי טבעי' }, set: { name: 'רגע של טוהר לרגליים (סבון שחור לשטיפת כפות הרגליים)' } },
+    { id: 'svc-18', was: { name: 'ערכת גזירה' }, set: { name: 'ערכת טיפוח לציפורניים' } },
+  ],
+  categories: { 'פדיקור מפנק': 'פדיקור טבעי' },
 };
 
 function buildClients(today) {
@@ -259,5 +272,5 @@ export function buildSeed(today) {
   const appointments = specs.map(({ i }) => byIndex.get(i))
     .sort((a, b) => a.date.localeCompare(b.date) || a.startMin - b.startMin || a.id.localeCompare(b.id));
 
-  return { version: 1, seededOn: today, servicePatch: SERVICE_PATCH.id, settings, services, clients, appointments, blocks, audit: [] };
+  return { version: 1, seededOn: today, servicePatch: SERVICE_PATCH.id, namePatch: NAME_PATCH.id, settings, services, clients, appointments, blocks, audit: [] };
 }

@@ -49,3 +49,13 @@
 
 .dup-msg { display: block; text-align: start; }
 .field-error .btn-text { margin-top: 4px; }
+
+.msg-tags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--g1); }
+.msg-bubble { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-box); padding: var(--g2) var(--g3);
+  white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; color: var(--espresso); }
+.msg-ph { background: var(--gold-tint); color: var(--gold-ink); border-radius: var(--r-btn); padding: 1px 6px; font-weight: 600; }
+.msg-url { color: var(--olive-deep); text-decoration: underline; text-underline-offset: 3px; }
+.msg-vars-title { font-weight: 600; color: var(--espresso); text-align: start; }
+.msg-vars { display: flex; flex-direction: column; gap: 4px; }
+.msg-var { font-size: var(--fs-sub); color: var(--ink); text-align: justify; text-wrap: pretty; overflow-wrap: anywhere; }
+.msg-var b { color: var(--espresso); font-weight: 700; }
