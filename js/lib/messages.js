@@ -1,6 +1,6 @@
 
 import { addDays, diffDays, dow, DAY_NAMES, fmtTime, parts } from './time.js';
-import { isYomTov } from './booking.js';
+import { isYomTov, ONLINE_MIN_NOTICE_MIN } from './booking.js';
 import { apptEnd, apptTravel, birthParts, callReminderOn, canSendService, returnWeeksOf } from './model.js';
 
 export const WAZE = 'https://waze.com/ul/hsv8uy09dk';
@@ -19,7 +19,7 @@ export const TIMING = {
   returnAtMin: 10 * 60,         // 19: בשעה 10:00 ביום שמגיע
   birthdayAtMin: 9 * 60,        // 21: בבוקר של יום ההולדת
   freedSlotMinDaysLater: 7,     // 13: למי שהתור הבא שלו/ה לפחות שבוע אחרי השעה שהתפנתה
-  freedSlotMinNoticeMin: 120,   // 13: לא מציעים שעה שמתחילה בעוד פחות משעתיים
+  freedSlotMinNoticeMin: ONLINE_MIN_NOTICE_MIN,   // 13: לא מציעים ללקוחות שעה שמתחילה בעוד פחות מ-24 שעות; שרה מקבלת הודעה (freedSlotTooSoon)
   quiet: { guardMin: 60, eveLastMin: 12 * 60 },
   candleMin: [965, 990, 1010, 1095, 1115, 1135, 1135, 1100, 1060, 965, 955, 955],
   exitMin:   [1080, 1100, 1185, 1205, 1225, 1235, 1235, 1220, 1190, 1150, 1055, 1055],
@@ -141,7 +141,7 @@ export const MESSAGES = [
   {
     id: 'freed-slot', n: '13', group: 'change', kind: 'service', link: 'offer', vars: ['שם', 'יום', 'תאריך', 'שעה', 'התור שלך', 'קישור'],
     title: 'התפנה תור',
-    when: 'כשתור מתבטל: לבד, בוואטסאפ, ללקוחות שהתור שלהם לפחות שבוע אחרי השעה שהתפנתה, ושהטיפול שלהם נכנס בה. מי שלוחץ/ת ראשון/ה מקבל/ת את השעה.',
+    when: 'כשתור מתבטל: לבד, בוואטסאפ, ללקוחות שהתור שלהם לפחות שבוע אחרי השעה שהתפנתה, ושהטיפול שלהם נכנס בה. מי שלוחץ/ת ראשון/ה מקבל/ת את השעה. שעה שמתפנה בעוד פחות מ-24 שעות לא נשלחת ללקוחות, ואת מקבלת עליה הודעה.',
     text: 'היי {שם},\nהתפנה תור ביום {יום}, {תאריך}, בשעה {שעה}.\nהתור שלך עכשיו {התור שלך}. אם נוח לך להקדים, אפשר לעבור לשעה הזאת כאן, כל עוד היא פנויה:\n{קישור}\nואם לא, הכל נשאר כמו שהוא 🤍 שרה',
   },
   {
@@ -357,9 +357,13 @@ export function birthdayTime(client, year) {
   return outOfQuiet({ date, min: TIMING.birthdayAtMin }, 'after');
 }
 
+export function freedSlotTooSoon(freed, now, minNoticeMin = TIMING.freedSlotMinNoticeMin) {
+  return !!now && earlier(norm(freed.date, freed.startMin - minNoticeMin), now);
+}
+
 export function freedSlotOffers(freed, appts, clientsById, opt = {}) {
   const { now = null, minDaysLater = TIMING.freedSlotMinDaysLater, minNoticeMin = TIMING.freedSlotMinNoticeMin } = opt;
-  if (now && earlier(norm(freed.date, freed.startMin - minNoticeMin), now)) return [];
+  if (freedSlotTooSoon(freed, now, minNoticeMin)) return [];
   const get = (id) => (clientsById instanceof Map ? clientsById.get(id) : clientsById[id]);
   const next = new Map();
   for (const a of appts) {

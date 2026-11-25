@@ -5,7 +5,7 @@ import {
   isMobilePhone, birthParts, fmtBirth,
 } from '../lib/model.js';
 import { expandBlocks } from '../lib/recur.js';
-import { publicMode, slotLength, freeStarts, bookableDays, cleanName, sameName } from '../lib/booking.js';
+import { publicMode, slotLength, freeStarts, bookableDays, cleanName, sameName, ONLINE_MIN_NOTICE_MIN, minGapFor } from '../lib/booking.js';
 import { buildSeed, SERVICE_PATCH, NAME_PATCH } from './seed.js';
 import { addHistory } from './seed-history.js';
 
@@ -75,8 +75,9 @@ function bookingCtx(db, from, to, config, now) {
     blocks: expandBlocks(db.blocks, from, to),
     today: todayYmd(now),
     nowMin: nowMin(now),
-    minNoticeMin: Number(config.minNoticeMin) || 0,
+    minNoticeMin: config.minNoticeMin != null ? Number(config.minNoticeMin) : ONLINE_MIN_NOTICE_MIN,
     stepMin: Number(config.stepMin) || 30,
+    minGapMin: minGapFor(db.services, config, db.settings.bufferMin),
   };
 }
 

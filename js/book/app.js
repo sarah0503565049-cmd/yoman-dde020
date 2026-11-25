@@ -123,7 +123,7 @@ function Shell({ head = true, backTo = '/', top = false, foot, children }) {
   useLayoutEffect(unRiver);
   return html`<div class="bk">
     ${head && html`<header class="bk-head"><div class=${cx('bk-in bk-head-row', !backTo && 'no-back')}>
-      ${backTo && html`<button type="button" class="icon-btn back-btn" aria-label="חזרה" onClick=${() => back(backTo)}><${Icon} name="back" /></button>`}
+      ${backTo && html`<button type="button" class="icon-btn back-btn" aria-label="חזרה" onClick=${() => (typeof backTo === 'function' ? backTo() : back(backTo))}><${Icon} name="back" /></button>`}
       <a class="bk-head-logo" href="#/"><img src=${LOGO.black} alt="Sarah B Cosmetics" width="300" height="330" /></a>
     </div></header>`}
     <main class=${cx('bk-main bk-in', top && 'is-top')}>${children}</main>
@@ -140,12 +140,9 @@ function Meta({ svc }) {
   </p>`;
 }
 
-function BookButton({ svc, label = BUTTONS.book }) {
-  if (publicMode(svc, BOOK) === 'whatsapp') {
-    return html`<a class="btn btn-primary" href=${BOOK.whatsapp.href} target="_blank" rel="noopener">
-      <${Icon} name="whatsapp" size=${22} /><span>${BUTTONS.book} בוואטסאפ</span></a>`;
-  }
-  return html`<a class="btn btn-primary" href=${'#/when/' + svc.id} onClick=${() => writeChosen(svc.id)}><span>${label}</span></a>`;
+function WhatsAppBook() {
+  return html`<a class="btn btn-primary" href=${BOOK.whatsapp.href} target="_blank" rel="noopener">
+    <${Icon} name="whatsapp" size=${22} /><span>${BUTTONS.book} בוואטסאפ</span></a>`;
 }
 
 function AskButton() {
@@ -173,14 +170,13 @@ const writeChosen = (id) => { try { sessionStorage.setItem(SVC_KEY, id); } catch
 function TreatmentTile({ svc, chosen }) {
   const c = TREATMENTS[svc.id] || {};
   const img = c.image;
-  const hasDetails = (c.details || []).length > 0 || (c.intro || []).length > 0;
   const wa = publicMode(svc, BOOK) === 'whatsapp';
   const len = slotLength(svc, BOOK);
   const bookHref = wa ? BOOK.whatsapp.href : '#/when/' + svc.id;
   const ext = (on) => (on ? { target: '_blank', rel: 'noopener' } : {});
   const pick = () => writeChosen(svc.id);
   return html`<article class=${cx('bk-tile', chosen && 'is-active')} id=${'t-' + svc.id}>
-    <a class="bk-tile-info" href=${hasDetails ? '#/t/' + svc.id : bookHref} ...${ext(!hasDetails && wa)}
+    <a class="bk-tile-info" href=${'#/when/' + svc.id}
       aria-current=${chosen ? 'true' : undefined} onClick=${pick}>
       ${img ? html`<img class="bk-circle" src=${img.src} alt="" loading="lazy" decoding="async" />`
         : html`<span class="bk-circle is-logo" aria-hidden="true"><img src=${LOGO.black} alt="" loading="lazy" /></span>`}
@@ -208,10 +204,10 @@ function ListScreen({ services }) {
         <source media="(min-width: 600px)" srcset=${HERO.imageWide} />
         <img class="bk-hero-img" src=${HERO.image} alt="" fetchpriority="high" />
       </picture>
+      <h1 class="bk-hero-title">${HERO.title} <em>${HERO.titleEm}</em></h1>
     </section>
     <div class="bk-intro">
       <p class="bk-place">${HERO.place}</p>
-      <h1>${HERO.title} <em>${HERO.titleEm}</em></h1>
       <p class="bk-sub">${HERO.sub}</p>
     </div>
     <div class="bk-tiles">${services.map((s) => html`<${TreatmentTile} key=${s.id} svc=${s} chosen=${s.id === chosen} />`)}</div>
@@ -235,84 +231,113 @@ function DetailPart({ d }) {
   </section>`;
 }
 
-function DetailScreen({ svc }) {
-  useScrollRestore(true);
-  const c = TREATMENTS[svc.id] || {};
-  const img = c.image;
-  const intro = (c.intro || []).length ? c.intro : (c.line ? [c.line] : []);
-  return html`<${Shell} foot=${html`<${BookButton} svc=${svc} label="לבחירת הטיפול" />`}>
-    <div class="bk-detail-head">
-      ${img && html`<img class="bk-circle is-big" src=${img.src} alt="" />`}
-      <h1>${nameOf(svc.name)}</h1>
+function Sheet({ title, onClose, children }) {
+  const panel = useRef(null);
+  useEffect(() => {
+    const prev = document.activeElement;
+    const el = panel.current;
+    const first = el && (el.querySelector('.chip.is-active') || el.querySelector('.chip') || el.querySelector('button'));
+    if (first) first.focus({ preventScroll: true });
+    const key = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', key);
+    document.documentElement.classList.add('bk-noscroll');
+    return () => {
+      document.removeEventListener('keydown', key);
+      document.documentElement.classList.remove('bk-noscroll');
+      if (prev && prev.focus && document.contains(prev)) prev.focus({ preventScroll: true });
+    };
+  }, []);
+  return html`<div class="bk-sheet-back" onClick=${(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div class="bk-sheet" role="dialog" aria-modal="true" aria-labelledby="bk-sheet-t" ref=${panel}>
+      <div class="bk-sheet-head">
+        <h2 id="bk-sheet-t">${title}</h2>
+        <button type="button" class="icon-btn" aria-label="סגירה" onClick=${onClose}><${Icon} name="close" /></button>
+      </div>
+      <div class="bk-sheet-body">${children}</div>
     </div>
-    ${intro.map((p, i) => html`<p class="bk-lead" key=${i}>${p}</p>`)}
-    <${Meta} svc=${svc} />
-    ${(c.details || []).length > 0 && html`<div class="card bk-details">
-      ${c.details.map((d, i) => html`<${DetailPart} key=${i} d=${d} />`)}
-    </div>`}
-    <${AskButton} />
-  </${Shell}>`;
-}
-
-function Picked({ svc, date, min }) {
-  return html`<div class="card bk-pick">
-    <p class="bk-pick-name">${nameOf(svc.name)}</p>
-    ${date ? html`<p class="bk-meta"><span>${fmtDateLong(date)}</span><span aria-hidden="true">·</span><span>${fmtTime(min)}</span></p>` : html`<${Meta} svc=${svc} />`}
   </div>`;
 }
 
-function WhenScreen({ svc, query }) {
-  const [days, setDays] = useState(null);
+function PickButton({ id, icon, label, value, disabled, onClick }) {
+  return html`<button type="button" id=${id} class=${cx('btn btn-soft bk-pickbtn', value && 'has-value')} disabled=${disabled}
+    aria-haspopup="dialog" aria-label=${value ? `${label}: ${value}` : label} onClick=${onClick}>
+    <${Icon} name=${icon} size=${22} />
+    <span class="bk-pickbtn-t">${value || label}</span>
+    <span class="bk-pickbtn-arrow" aria-hidden="true"><${Icon} name="chevronEnd" size=${20} /></span>
+  </button>`;
+}
+
+function TreatmentScreen({ svc, query }) {
+  const c = TREATMENTS[svc.id] || {};
+  const wa = publicMode(svc, BOOK) === 'whatsapp';
+  const [days, setDays] = useState(wa ? [] : null);
   const [date, setDate] = useState(isYmd(query.d || '') ? query.d : null);
   const [min, setMin] = useState(query.m != null && query.m !== '' ? Number(query.m) : null);
+  const [sheet, setSheet] = useState(null);
   const [all, setAll] = useState(false);
-  const timesRef = useRef(null);
-  useEffect(() => { store.bookingDays(svc.id, { config: BOOK }).then(setDays); }, [svc.id]);
+  const [more, setMore] = useState(query.more === '1');
+  useEffect(() => { if (!wa) store.bookingDays(svc.id, { config: BOOK }).then(setDays); }, [svc.id]);
   useScrollRestore(!!days);
 
   const day = days && days.find((d) => d.date === date);
   const chosen = !!(day && min != null && day.starts.includes(min));
   const shown = days ? (all ? days : days.slice(0, FIRST_DAYS)) : [];
   const dateHidden = days && date && !shown.some((d) => d.date === date);
+  const intro = (c.intro || []).length ? c.intro : (c.line ? [c.line] : []);
+  const hasMore = intro.length > 0 || (c.details || []).length > 0;
 
-  const pickDay = (d) => {
-    setDate(d);
-    setMin(null);
-    setQuery(`when/${svc.id}?d=${d}`);
-    requestAnimationFrame(() => {
-      const el = timesRef.current;
-      if (el && el.getBoundingClientRect().top > window.innerHeight * 0.55) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  };
-  const pickTime = (m) => { setMin(m); setQuery(`when/${svc.id}?d=${date}&m=${m}`); };
+  const pickDay = (d) => { setDate(d); setMin(null); setQuery(`when/${svc.id}?d=${d}`); setSheet('time'); };
+  const pickTime = (m) => { setMin(m); setQuery(`when/${svc.id}?d=${date}&m=${m}`); setSheet(null); };
   const next = () => { if (chosen) go(`me/${svc.id}/${date}/${min}`); };
+  const toggleMore = () => { setMore(!more); if (!more) requestAnimationFrame(unRiverSoon); };
 
-  return html`<${Shell} backTo="/" foot=${days && days.length > 0 && html`<button type="button" class="btn btn-primary" disabled=${!chosen} onClick=${next}><span>המשך</span></button>`}>
-    <h1>מתי <em>נוח לך?</em></h1>
-    <${Picked} svc=${svc} />
+  const foot = wa ? html`<${WhatsAppBook} />`
+    : days && days.length > 0 && html`<button type="button" class="btn btn-primary" disabled=${!chosen} onClick=${next}><span>המשך</span></button>`;
+  return html`<${Shell} backTo="/" foot=${foot}>
+    <div class="bk-detail-head"><h1>${nameOf(svc.name)}</h1></div>
+    <${Meta} svc=${svc} />
     ${!days && html`<${Loading} />`}
-    ${days && days.length === 0 && html`<${Notice} title="אין כרגע שעות פנויות לטיפול הזה" />
-      <a class="btn btn-primary" href=${BOOK.whatsapp.href} target="_blank" rel="noopener"><${Icon} name="whatsapp" size=${22} /><span>${BUTTONS.book} בוואטסאפ</span></a>`}
-    ${days && days.length > 0 && html`<section class="bk-sec" aria-labelledby="bk-day">
-      <h2 id="bk-day">יום</h2>
+    ${!wa && days && days.length === 0 && html`<${Notice} title="אין כרגע שעות פנויות לטיפול הזה" /><${WhatsAppBook} />`}
+    ${!wa && days && days.length > 0 && html`<div class="bk-picks">
+      <${PickButton} id="bk-pick-day" icon="calendar" label=${BUTTONS.pickDay} value=${day ? fmtDateLong(day.date) : null} onClick=${() => setSheet('day')} />
+      <${PickButton} id="bk-pick-time" icon="clock" label=${BUTTONS.pickTime} value=${chosen ? fmtTime(min) : null} disabled=${!day} onClick=${() => setSheet('time')} />
+    </div>`}
+    ${hasMore && html`<button type="button" class="btn-text bk-more-btn" aria-expanded=${more ? 'true' : 'false'} aria-controls="bk-more" onClick=${toggleMore}>
+      <span>${BUTTONS.more}</span><span class=${cx('bk-more-arrow', more && 'is-open')} aria-hidden="true"><${Icon} name="chevronEnd" size=${20} /></span>
+    </button>`}
+    ${hasMore && more && html`<div class="bk-more" id="bk-more">
+      ${c.image && html`<img class="bk-circle is-big" src=${c.image.src} alt="" />`}
+      ${intro.map((p, i) => html`<p class="bk-lead" key=${i}>${p}</p>`)}
+      ${(c.details || []).length > 0 && html`<div class="card bk-details">
+        ${c.details.map((d, i) => html`<${DetailPart} key=${i} d=${d} />`)}
+      </div>`}
+    </div>`}
+    <${AskButton} />
+    ${sheet === 'day' && days && html`<${Sheet} key="day" title=${BUTTONS.pickDay} onClose=${() => setSheet(null)}>
       <div class="bk-grid bk-days">
         ${(dateHidden ? days : shown).map((d) => html`<button type="button" key=${d.date} class=${cx('pill chip', d.date === date && 'is-active')}
           aria-pressed=${d.date === date ? 'true' : 'false'} onClick=${() => pickDay(d.date)}><span>${dayChip(d.date)}</span></button>`)}
       </div>
       ${!all && !dateHidden && days.length > FIRST_DAYS && html`<button type="button" class="btn btn-soft" onClick=${() => setAll(true)}><span>ימים נוספים</span></button>`}
-    </section>`}
-    ${day && html`<section class="bk-sec" ref=${timesRef} aria-labelledby="bk-time">
-      <h2 id="bk-time">שעה</h2>
+    </${Sheet}>`}
+    ${sheet === 'time' && day && html`<${Sheet} key="time" title=${BUTTONS.pickTime} onClose=${() => setSheet(null)}>
       <p class="bk-meta">${fmtDateLong(day.date)}</p>
       <div class="bk-grid bk-times">
         ${day.starts.map((m) => html`<button type="button" key=${m} class=${cx('pill chip', m === min && 'is-active')}
           aria-pressed=${m === min ? 'true' : 'false'} onClick=${() => pickTime(m)}><span>${fmtTime(m)}</span></button>`)}
       </div>
-    </section>`}
+    </${Sheet}>`}
   </${Shell}>`;
 }
 
 const EMPTY_BIRTH = { d: '', m: '', y: '' };
+
+function Picked({ svc, date, min }) {
+  return html`<div class="card bk-pick">
+    <p class="bk-pick-name">${nameOf(svc.name)}</p>
+    <p class="bk-meta"><span>${fmtDateLong(date)}</span><span aria-hidden="true">·</span><span>${fmtTime(min)}</span></p>
+  </div>`;
+}
 
 function MeScreen({ svc, date, min }) {
   useScrollRestore(true);
@@ -404,7 +429,7 @@ function DoneScreen({ id }) {
   if (a === undefined) return html`<${Shell} backTo=${null}><${Loading} /></${Shell}>`;
   if (!a) return html`<${Shell} backTo=${null}><${Notice} title="התור לא נמצא במכשיר הזה" /></${Shell}>`;
   const name = nameOf((a.items || []).map((it) => it.name).join(' + '));
-  return html`<${Shell} backTo=${null}>
+  return html`<${Shell} backTo=${() => go('/', { replace: true })}>
     <div class="bk-done">
       <h1>התור <em>נקבע</em></h1>
       <p>תודה, נתראה בקליניקה 🤍</p>
@@ -433,8 +458,8 @@ function App() {
   const slotOk = isYmd(b || '') && /^\d+$/.test(c || '');
   let view = null;
   if (!screen) view = html`<${ListScreen} services=${services} />`;
-  else if (screen === 't' && svc) view = html`<${DetailScreen} svc=${svc} />`;
-  else if (screen === 'when' && bookable) view = html`<${WhenScreen} svc=${svc} query=${r.query} />`;
+  else if (screen === 't' && svc) { setTimeout(() => go(`when/${svc.id}?more=1`, { replace: true }), 0); return null; }
+  else if (screen === 'when' && svc) view = html`<${TreatmentScreen} svc=${svc} query=${r.query} />`;
   else if (screen === 'me' && bookable && slotOk) view = html`<${MeScreen} svc=${svc} date=${b} min=${Number(c)} />`;
   else if (screen === 'sum' && bookable && slotOk) view = html`<${SumScreen} svc=${svc} date=${b} min=${Number(c)} />`;
   else if (screen === 'done' && a) view = html`<${DoneScreen} id=${a} />`;
