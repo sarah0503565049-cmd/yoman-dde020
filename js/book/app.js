@@ -14,6 +14,7 @@ const cx = (...a) => a.filter(Boolean).join(' ');
 const money = (v) => `${(Number(v) || 0).toLocaleString('he-IL')} ₪`;
 const dayChip = (ymd) => { const { d, m } = parts(ymd); return `${DAY_NAMES[dow(ymd)]} ${d}/${m}`; };
 const nameOf = (s) => String(s || '').replace(/ - /g, ' - ');
+const tileName = (s) => nameOf(s).split(/(\S+-\S+)/).map((p, i) => (i % 2 ? html`<span class="nw">${p}</span>` : p));
 const FIRST_DAYS = 9;
 
 const RIVER_SEL = '.bk-line, .bk-lead, .bk-detail p, .bk-li-t, .notice-text';
@@ -139,12 +140,12 @@ function Meta({ svc }) {
   </p>`;
 }
 
-function BookButton({ svc }) {
+function BookButton({ svc, label = BUTTONS.book }) {
   if (publicMode(svc, BOOK) === 'whatsapp') {
     return html`<a class="btn btn-primary" href=${BOOK.whatsapp.href} target="_blank" rel="noopener">
       <${Icon} name="whatsapp" size=${22} /><span>${BUTTONS.book} בוואטסאפ</span></a>`;
   }
-  return html`<a class="btn btn-primary" href=${'#/when/' + svc.id}><span>${BUTTONS.book}</span></a>`;
+  return html`<a class="btn btn-primary" href=${'#/when/' + svc.id} onClick=${() => writeChosen(svc.id)}><span>${label}</span></a>`;
 }
 
 function AskButton() {
@@ -165,26 +166,37 @@ function Notice({ kind = 'info', title, children }) {
   </div>`;
 }
 
-function TreatmentCard({ svc }) {
+const SVC_KEY = 'book.svc';
+const readChosen = () => { try { return sessionStorage.getItem(SVC_KEY); } catch { return null; } };
+const writeChosen = (id) => { try { sessionStorage.setItem(SVC_KEY, id); } catch { /* בלי אחסון: בלי סימון */ } };
+
+function TreatmentTile({ svc, chosen }) {
   const c = TREATMENTS[svc.id] || {};
   const img = c.image;
   const hasDetails = (c.details || []).length > 0 || (c.intro || []).length > 0;
-  return html`<article class="card bk-card" id=${'t-' + svc.id}>
-    <div class="bk-card-body">
-      <div class="bk-card-head">
-        ${img && html`<img class="bk-circle" src=${img.src} alt="" loading="lazy" decoding="async" />`}
-        <h2 class="bk-card-title">${nameOf(svc.name)}</h2>
-      </div>
-      ${c.line && html`<p class="bk-line">${c.line}</p>`}
-      <${Meta} svc=${svc} />
-      ${hasDetails && html`<a class="btn-text bk-more" href=${'#/t/' + svc.id}>${BUTTONS.details}<${Icon} name="chevronEnd" size=${20} /></a>`}
-      <${BookButton} svc=${svc} />
-    </div>
+  const wa = publicMode(svc, BOOK) === 'whatsapp';
+  const len = slotLength(svc, BOOK);
+  return html`<article class=${cx('bk-tile', chosen && 'is-active')} id=${'t-' + svc.id}>
+    <a class="bk-tile-go" href=${wa ? BOOK.whatsapp.href : '#/when/' + svc.id} target=${wa ? '_blank' : undefined} rel=${wa ? 'noopener' : undefined}
+      aria-current=${chosen ? 'true' : undefined} onClick=${() => writeChosen(svc.id)}>
+      ${img ? html`<img class="bk-circle" src=${img.src} alt="" loading="lazy" decoding="async" />`
+        : html`<span class="bk-circle is-logo" aria-hidden="true"><img src=${LOGO.black} alt="" loading="lazy" /></span>`}
+      <h2 class="bk-tile-title">${tileName(svc.name)}</h2>
+      <span class="bk-tile-meta">
+        ${BOOK.showPrices && html`<span class="money">${money(svc.price)}</span>`}
+        ${BOOK.showPrices && len > 0 && html`<span aria-hidden="true"> · </span>`}
+        ${len > 0 && html`<span>${fmtDuration(len)}</span>`}
+      </span>
+      ${wa && html`<span class="bk-tile-wa"><${Icon} name="whatsapp" size=${18} /><span>בוואטסאפ</span></span>`}
+    </a>
+    ${hasDetails && html`<a class="bk-tile-more" href=${'#/t/' + svc.id} onClick=${() => writeChosen(svc.id)}>לפרטים</a>`}
+    ${chosen && html`<span class="bk-tile-check" aria-hidden="true"><${Icon} name="check" size=${16} /></span>`}
   </article>`;
 }
 
 function ListScreen({ services }) {
   useScrollRestore(true);
+  const chosen = readChosen();
   return html`<${Shell} head=${false} top>
     <section class="bk-hero">
       <picture>
@@ -197,7 +209,7 @@ function ListScreen({ services }) {
       <h1>${HERO.title} <em>${HERO.titleEm}</em></h1>
       <p class="bk-sub">${HERO.sub}</p>
     </div>
-    <div class="bk-list">${services.map((s) => html`<${TreatmentCard} key=${s.id} svc=${s} />`)}</div>
+    <div class="bk-tiles">${services.map((s) => html`<${TreatmentTile} key=${s.id} svc=${s} chosen=${s.id === chosen} />`)}</div>
     <${AskButton} />
     <div class="bk-end"><img src=${LOGO.black} alt="Sarah B Cosmetics" width="300" height="330" loading="lazy" /></div>
   </${Shell}>`;
@@ -223,7 +235,7 @@ function DetailScreen({ svc }) {
   const c = TREATMENTS[svc.id] || {};
   const img = c.image;
   const intro = (c.intro || []).length ? c.intro : (c.line ? [c.line] : []);
-  return html`<${Shell} foot=${html`<${BookButton} svc=${svc} />`}>
+  return html`<${Shell} foot=${html`<${BookButton} svc=${svc} label="לבחירת הטיפול" />`}>
     <div class="bk-detail-head">
       ${img && html`<img class="bk-circle is-big" src=${img.src} alt="" />`}
       <h1>${nameOf(svc.name)}</h1>
