@@ -73,11 +73,21 @@ html.bk-doc #app { height: auto; }
   .bk-hero-img { object-position: 60% 20%; }
 }
 
-.bk-hero-title {
+.bk-hero::after {
+  content: '';
   position: absolute;
   z-index: 1;
+  inset-inline: 0;
+  bottom: 0;
+  height: 38%;
+  background: linear-gradient(to top, rgba(251, 246, 240, .95) 0%, rgba(251, 246, 240, .78) 45%, rgba(251, 246, 240, 0) 100%);
+  pointer-events: none;
+}
+.bk-hero-title {
+  position: absolute;
+  z-index: 2;
   inset-inline: 4%;
-  bottom: 5%;
+  bottom: 4%;
   margin: 0;
   font-weight: 400;
   font-size: clamp(2.9rem, 13.5vw, 4.25rem);
@@ -85,7 +95,6 @@ html.bk-doc #app { height: auto; }
   text-align: center;
   white-space: nowrap;
   color: var(--espresso);
-  text-shadow: 0 0 1px #fff, 0 0 2px #fff, 0 0 4px #fff, 0 0 8px #fff, 0 0 14px #fff, 0 0 22px rgba(255, 255, 255, .9), 0 0 34px rgba(255, 255, 255, .7);
 }
 .bk-hero-title em { color: var(--olive-deep); }
 @media (min-width: 600px) { .bk-hero-title { font-size: clamp(4.25rem, 11vw, 5.25rem); } }
