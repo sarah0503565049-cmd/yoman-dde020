@@ -4,6 +4,7 @@ import { useRoute, replace, fillPath } from './router.js';
 import { TABS, loadScreen } from './routes.js';
 import { Page, Empty, Notice, Loader, OverlayHost, Boundary } from './ui/bits.js';
 import { Icon } from './ui/icons.js';
+import { boot } from './boot.js';
 
 
 const modules = new Map();
@@ -90,8 +91,7 @@ function BootError() {
   </div></div>`;
 }
 
-async function boot() {
-  const root = document.getElementById('app');
+async function startApp(root) {
   render(html`<${Loader} />`, root);
   try {
     const { getStore } = await import('./data/store.js');
@@ -100,12 +100,17 @@ async function boot() {
   } catch (err) {
     console.error('הטעינה של הנתונים נכשלה', err);
     render(html`<${BootError} />`, root);
-    return;
+    return false;
   }
   render(html`<${App} />`, root);
+  return true;
 }
 
-boot();
+const root = document.getElementById('app');
+boot({ root, startApp, fail: () => render(html`<${BootError} />`, root) }).catch((err) => {
+  console.error('העלייה נכשלה', err);
+  render(html`<${BootError} />`, root);
+});
 
 
 const secure = location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname);

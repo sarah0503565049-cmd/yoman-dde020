@@ -485,11 +485,23 @@ export function createStore({ storage, today, history = false } = {}) {
       subscribers.add(fn);
       return () => { subscribers.delete(fn); };
     },
+    touch() {
+      for (const fn of [...subscribers]) {
+        try { fn(); } catch { /* מנוי שזרק לא שובר את השאר */ }
+      }
+    },
   };
 }
 
 let singleton = null;
+let chosenStorage = null;
+
+export function useStorage(storage) {
+  if (singleton) throw new Error('האחסון נקבע אחרי שהנתונים כבר נטענו');
+  chosenStorage = storage;
+}
+
 export function getStore() {
-  if (!singleton) singleton = createStore({ storage: window.localStorage, history: true });
+  if (!singleton) singleton = createStore({ storage: chosenStorage || window.localStorage, history: true });
   return singleton;
 }

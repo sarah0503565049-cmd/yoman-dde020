@@ -882,6 +882,19 @@ html.has-sheet .toast { animation-name: toast-in-top; }
 .mark-coin { display: inline-flex; color: var(--terracotta); }
 
 
+.login .page-body { gap: var(--g4); padding-top: clamp(var(--g4), 11vh, 112px); }
+.login-brand { display: flex; justify-content: center; }
+.login-logo { width: auto; height: 136px; }
+.login-title { text-align: center; margin-bottom: calc(var(--g1) * -1); }
+.login-form { display: flex; flex-direction: column; gap: var(--g3); }
+.login-form .btn { margin-top: var(--g1); }
+
+
+.sync-line { display: flex; align-items: baseline; gap: var(--g1); font-size: var(--fs-sub); font-weight: 600; color: var(--ink); text-align: justify; }
+.sync-line .dot { flex: none; transform: translateY(-1px); }
+.sync-line.is-error { color: var(--danger-deep); }
+
+
 .fab.kit-static { position: static; }
 .kit-icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: var(--g2) var(--g1); }
 .kit-icon { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--olive-deep); }

@@ -1,9 +1,10 @@
 
 import { html, useState, useEffect } from '../../vendor/preact-htm.js';
-import { Page, Section, Card, List, Row, Button, Field, Select, Toggle, Loader, toast, confirmSheet } from '../ui/bits.js';
+import { Page, Section, Card, List, Row, Button, Field, Select, Toggle, Loader, Dot, toast, confirmSheet } from '../ui/bits.js';
 import { useData } from '../ui/hooks.js';
 import { getStore } from '../data/store.js';
 import { DAY_NAMES, timeOptions } from '../lib/time.js';
+import { syncInfo } from '../boot.js';
 
 const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;   // 1440 = 24:00
 const opts = (from, to, step) => timeOptions(from, to + 1, step).map((m) => ({ value: m, label: hhmm(m) }));
@@ -84,8 +85,29 @@ function ClinicHours({ settings }) {
   </${Card}>`;
 }
 
+const SYNC_TEXT = {
+  synced: 'הכול שמור ומסונכרן',
+  pending: 'שומר...',
+  offline: 'אין חיבור. השינויים נשמרים בטלפון ויישלחו כשיחזור.',
+  error: 'יש שינוי שלא נשמר. לפנות לתמיכה.',
+};
+const SYNC_DOT = { synced: 'var(--olive)', pending: 'var(--gold)', offline: 'var(--line-strong)', error: 'var(--danger)' };
+
+function SyncLine({ sync }) {
+  const [st, setSt] = useState(() => sync.status());
+  useEffect(() => {
+    const tick = () => setSt(sync.status());
+    const timer = setInterval(tick, 1000);
+    const off = getStore().subscribe(() => setTimeout(tick, 0));
+    return () => { clearInterval(timer); off(); };
+  }, []);
+  const key = SYNC_TEXT[st] ? st : 'pending';
+  return html`<p class=${'sync-line is-' + key} role="status"><${Dot} color=${SYNC_DOT[key]} size=${10} /><span>${SYNC_TEXT[key]}</span></p>`;
+}
+
 export default function More() {
   const { data: settings } = useData((s) => s.getSettings(), []);
+  const sync = syncInfo();   // null במצב הדגמה
 
   const reset = async () => {
     const ok = await confirmSheet({ title: 'לאפס את כל הנתונים?', ok: 'איפוס', cancel: 'חזרה', danger: true });
@@ -94,7 +116,13 @@ export default function More() {
     toast('הנתונים אופסו');
   };
 
+  const signOut = async () => {
+    const ok = await confirmSheet({ title: 'לצאת מהחשבון?', ok: 'יציאה', cancel: 'חזרה' });
+    if (ok) await sync.signOut();
+  };
+
   return html`<${Page} title="עוד">
+    ${sync && html`<${SyncLine} sync=${sync} />`}
     <${List}>
       <${Row} title="דוחות" sub="הכנסות ומכירות, לפי יום, שבוע, חודש או טווח" href="/reports" chevron />
       <${Row} title="פריטים" href="/items" chevron />
@@ -126,12 +154,13 @@ export default function More() {
         </${Card}>
       </${Section}>
 
+      ${sync ? html`<${Button} kind="soft" onClick=${signOut}>יציאה מהחשבון</${Button}>` : html`
       <${Section} title="נתוני דוגמה">
         <${Card}>
           <p class="card-note">כל הנתונים כאן מומצאים, לבדיקה בלבד.</p>
           <${Button} kind="soft" onClick=${reset}>איפוס נתוני הדוגמה</${Button}>
         </${Card}>
-      </${Section}>
+      </${Section}>`}
 
       <p class="small card-note">גרסה 0.1 · שלב 1</p>
     `}

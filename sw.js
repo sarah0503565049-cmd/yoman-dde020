@@ -1,5 +1,5 @@
 
-const CACHE = 'torim-v2';
+const CACHE = 'torim-v3';
 const CORE = [
   './',
   'index.html',
@@ -12,6 +12,13 @@ const CORE = [
   'css/reports.css',
   'vendor/preact-htm.js',
   'js/app.js',
+  'js/boot.js',
+  'js/config.js',
+  'js/screens/login.js',
+  'js/data/sync-storage.js',
+  'js/data/remote-supabase.js',
+  'js/lib/sync.js',
+  'vendor/supabase.js',
   'js/router.js',
   'js/routes.js',
   'js/ui/bits.js',
@@ -42,10 +49,14 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+const isDatabase = (url) => /(^|\.)supabase\.(co|in)$/.test(url.hostname)
+  || /^\/(auth|rest|realtime|storage|functions|graphql)\/v1(\/|$)/.test(url.pathname);
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
-  if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  if (isDatabase(url)) return;   // לא נוגעים: הדפדפן שולח לרשת כרגיל, ושום דבר לא נשמר
+  if (req.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
   if (req.cache === 'only-if-cached' && req.mode !== 'same-origin') return;
 
