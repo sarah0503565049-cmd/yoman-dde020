@@ -1,8 +1,10 @@
 
-import { todayYmd, isYmd } from '../lib/time.js';
+import { todayYmd, isYmd, nowMin, addDays } from '../lib/time.js';
 import {
   firstVisitIds as modelFirstVisitIds, normalizePhone, apptTotal, FREE_REASONS, validateAppointment, validateBlock,
 } from '../lib/model.js';
+import { expandBlocks } from '../lib/recur.js';
+import { publicMode, slotLength, freeStarts, bookableDays, cleanName, sameName } from '../lib/booking.js';
 import { buildSeed } from './seed.js';
 import { addHistory } from './seed-history.js';
 
@@ -39,6 +41,24 @@ function checkBlock(b) {
 
 function assertNeverPaid(a) {
   if (a.status === 'paid' || a.everPaid) throw new Error('תור ששולם לא נסגר ללא תשלום');
+}
+
+function codedError(message, code) {
+  const err = new Error(message);
+  err.code = code;
+  return err;
+}
+
+function bookingCtx(db, from, to, config, now) {
+  return {
+    settings: db.settings,
+    appts: db.appointments.filter((a) => a.date >= from && a.date <= to),
+    blocks: expandBlocks(db.blocks, from, to),
+    today: todayYmd(now),
+    nowMin: nowMin(now),
+    minNoticeMin: Number(config.minNoticeMin) || 0,
+    stepMin: Number(config.stepMin) || 30,
+  };
 }
 
 function logAudit(db, action, apptId, from, to, detail) {
@@ -308,6 +328,59 @@ export function createStore({ storage, today, history = false } = {}) {
       }
       write(db);
       return clone(a);
+    },
+
+
+    async bookingDays(serviceId, { config, now = new Date() } = {}) {
+      const db = read();
+      const svc = db.services.find((s) => s.id === serviceId);
+      if (publicMode(svc, config) !== 'book') return [];
+      const today = todayYmd(now);
+      const days = Number(config.daysAhead) || 42;
+      const ctx = bookingCtx(db, today, addDays(today, days), config, now);
+      return bookableDays(slotLength(svc, config), ctx, { from: today, days });
+    },
+
+    async bookOnline({ serviceId, date, startMin, name, phone } = {}, { config, now = new Date() } = {}) {
+      const typed = cleanName(name);
+      if (!typed) throw codedError('חסר שם', 'name');
+      const ph = normalizePhone(phone);
+      if (!ph) throw codedError('מספר הטלפון לא תקין', 'phone');
+      const db = read();
+      const svc = db.services.find((s) => s.id === serviceId);
+      if (publicMode(svc, config) !== 'book') throw codedError('את הטיפול הזה אי אפשר לקבוע כאן', 'service');
+      const len = slotLength(svc, config);
+      const start = Number(startMin);
+      if (!isYmd(date) || !freeStarts(date, len, bookingCtx(db, date, date, config, now)).includes(start)) {
+        throw codedError('השעה הזאת כבר לא פנויה', 'slot_taken');
+      }
+      const at = nowIso();
+      let client = db.clients.find((c) => !c.deletedAt && c.phone === ph);
+      const existingClient = !!client;
+      if (!client) {
+        client = {
+          id: newId(), name: typed, phone: ph, email: '', birthDate: null, notes: '', callBefore: false, returnWeeks: null,
+          createdAt: at, deletedAt: null, marketingOptOut: false, optOutAt: null, optOutSource: null,
+        };
+        db.clients.push(client);
+      }
+      const nameDiffers = existingClient && !sameName(client.name, typed);
+      const appt = {
+        id: newId(), clientId: client.id, date, startMin: start, durationMin: len,
+        status: config.onlineStatus || 'booked', source: 'online',
+        items: [{
+          serviceId: svc.id, name: svc.name, shortName: svc.shortName, color: svc.color,
+          price: svc.price, listPrice: svc.price, durationMin: svc.durationMin,
+        }],
+        note: nameDiffers ? `נקבע על שם ${typed}` : '', bookedName: typed,
+        cancelledBy: null, cancelledAt: null, cancelReason: '', calledAt: null, visitNote: '', nextStep: '',
+        payment: null, everPaid: false, freeReason: null, closedAt: null, noFollowUp: false, createdAt: at,
+      };
+      const errs = validateAppointment(appt);
+      if (errs.length) throw new Error(errs.join(' · '));
+      db.appointments.push(appt);
+      write(db);
+      return { appointment: clone(appt), client: clone(client), existingClient, nameDiffers };
     },
 
     async listBlocks() { return clone(read().blocks); },

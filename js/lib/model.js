@@ -222,8 +222,8 @@ export function firstVisitIds(allAppts) {
 export function normalizePhone(raw) {
   let s = String(raw || '').replace(/[^\d+]/g, '');
   if (!s) return null;
-  if (s.startsWith('+972')) s = '0' + s.slice(4);
-  else if (s.startsWith('972')) s = '0' + s.slice(3);
+  if (s.startsWith('00')) s = '+' + s.slice(2);
+  if (s.startsWith('+972') || s.startsWith('972')) s = '0' + s.slice(s.startsWith('+') ? 4 : 3).replace(/^0/, '');
   else if (s.startsWith('+')) return /^\+\d{8,15}$/.test(s) ? s : null;
   if (!/^0\d{8,9}$/.test(s)) return null;
   return '+972' + s.slice(1);
