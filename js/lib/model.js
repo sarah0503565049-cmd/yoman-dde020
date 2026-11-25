@@ -261,6 +261,43 @@ export function normalizePhone(raw) {
   return '+972' + s.slice(1);
 }
 
+export function isMobilePhone(raw) {
+  return /^\+9725\d{8}$/.test(normalizePhone(raw) || '');
+}
+
+const isLeap = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+const monthDays = (m, y) => (m === 2 ? (y == null || isLeap(y) ? 29 : 28) : [4, 6, 9, 11].includes(m) ? 30 : 31);
+const p2 = (n) => String(n).padStart(2, '0');
+
+export function birthParts(v) {
+  const s = String(v || '');
+  const full = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  const short = /^--(\d{2})-(\d{2})$/.exec(s);
+  if (!full && !short) return null;
+  const y = full ? Number(full[1]) : null;
+  const m = Number(full ? full[2] : short[1]);
+  const d = Number(full ? full[3] : short[2]);
+  if (m < 1 || m > 12 || d < 1 || d > monthDays(m, y)) return null;
+  return { y, m, d };
+}
+
+export function birthFromParts({ d, m, y } = {}, today = null) {
+  const num = (x) => (x === '' || x == null ? null : Number(x));
+  const D = num(d); const M = num(m); const Y = num(y);
+  if (D == null && M == null && Y == null) return { value: null, error: null };
+  if (D == null || M == null) return { value: null, error: 'partial' };
+  const value = Y == null ? `--${p2(M)}-${p2(D)}` : `${Y}-${p2(M)}-${p2(D)}`;
+  if (!birthParts(value)) return { value: null, error: 'invalid' };
+  if (Y != null && today && value > today) return { value: null, error: 'future' };
+  return { value, error: null };
+}
+
+export function fmtBirth(v) {
+  const b = birthParts(v);
+  if (!b) return '';
+  return `${p2(b.d)}/${p2(b.m)}${b.y != null ? '/' + b.y : ''}`;
+}
+
 export function formatPhone(intl) {
   if (!intl) return '';
   if (!intl.startsWith('+972')) return intl;

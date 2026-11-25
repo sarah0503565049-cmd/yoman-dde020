@@ -526,6 +526,14 @@ html.is-locked .fill-scroll { overflow: hidden; }
 .date-row .input { flex: 1; }
 .date-day { flex: none; min-width: 6.5em; font-weight: 700; color: var(--espresso); }
 
+
+.birth-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1.1fr); gap: var(--g1); }
+.birth-row .select { padding-inline-start: 12px; padding-inline-end: 34px; background-position: left 10px center; background-size: 20px; }
+[dir='ltr'] .birth-row .select { background-position: right 10px center; }
+.birth-row .select.is-empty { color: #8C8177; }
+.birth-row .select option { color: var(--espresso); }
+.field-opt { font-weight: 400; color: var(--ink); }
+
 .textarea { min-height: 120px; padding: 12px 14px; line-height: 1.6; resize: vertical; }
 
 

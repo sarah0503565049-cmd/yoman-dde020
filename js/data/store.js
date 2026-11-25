@@ -2,6 +2,7 @@
 import { todayYmd, isYmd, nowMin, addDays } from '../lib/time.js';
 import {
   firstVisitIds as modelFirstVisitIds, normalizePhone, apptTotal, FREE_REASONS, validateAppointment, validateBlock,
+  isMobilePhone, birthParts, fmtBirth,
 } from '../lib/model.js';
 import { expandBlocks } from '../lib/recur.js';
 import { publicMode, slotLength, freeStarts, bookableDays, cleanName, sameName } from '../lib/booking.js';
@@ -359,11 +360,12 @@ export function createStore({ storage, today, history = false } = {}) {
       return bookableDays(slotLength(svc, config), ctx, { from: today, days });
     },
 
-    async bookOnline({ serviceId, date, startMin, name, phone } = {}, { config, now = new Date() } = {}) {
+    async bookOnline({ serviceId, date, startMin, name, phone, birthDate = null } = {}, { config, now = new Date() } = {}) {
       const typed = cleanName(name);
       if (!typed) throw codedError('חסר שם', 'name');
       const ph = normalizePhone(phone);
-      if (!ph) throw codedError('מספר הטלפון לא תקין', 'phone');
+      if (!ph || !isMobilePhone(ph)) throw codedError('מספר הטלפון לא תקין', 'phone');
+      const birth = birthParts(birthDate) && !(birthDate.length === 10 && birthDate > todayYmd(now)) ? birthDate : null;
       const db = read();
       const svc = db.services.find((s) => s.id === serviceId);
       if (publicMode(svc, config) !== 'book') throw codedError('את הטיפול הזה אי אפשר לקבוע כאן', 'service');
@@ -377,12 +379,20 @@ export function createStore({ storage, today, history = false } = {}) {
       const existingClient = !!client;
       if (!client) {
         client = {
-          id: newId(), name: typed, phone: ph, email: '', birthDate: null, notes: '', callBefore: false, returnWeeks: null,
+          id: newId(), name: typed, phone: ph, email: '', birthDate: birth, notes: '', callBefore: false, returnWeeks: null,
           createdAt: at, deletedAt: null, marketingOptOut: false, optOutAt: null, optOutSource: null,
         };
         db.clients.push(client);
       }
       const nameDiffers = existingClient && !sameName(client.name, typed);
+      const notes = nameDiffers ? [`נקבע על שם ${typed}`] : [];
+      if (existingClient && birth) {
+        const was = birthParts(client.birthDate);
+        const got = birthParts(birth);
+        const sameDay = was && was.m === got.m && was.d === got.d;
+        if (!nameDiffers && (!was || (sameDay && was.y == null && got.y != null))) client.birthDate = birth;
+        else if (!sameDay || (got.y != null && was.y != null && was.y !== got.y)) notes.push(`תאריך לידה: ${fmtBirth(birth)}`);
+      }
       const appt = {
         id: newId(), clientId: client.id, date, startMin: start, durationMin: len,
         status: config.onlineStatus || 'booked', source: 'online',
@@ -391,7 +401,7 @@ export function createStore({ storage, today, history = false } = {}) {
           price: svc.price, listPrice: svc.price, durationMin: svc.durationMin,
           ...(svc.travelMin ? { travelMin: svc.travelMin } : {}),
         }],
-        note: nameDiffers ? `נקבע על שם ${typed}` : '', bookedName: typed,
+        note: notes.join(' · '), bookedName: typed,
         cancelledBy: null, cancelledAt: null, cancelReason: '', calledAt: null, visitNote: '', nextStep: '',
         payment: null, everPaid: false, freeReason: null, closedAt: null, noFollowUp: false, createdAt: at,
       };

@@ -1,7 +1,7 @@
 
 import { addDays, diffDays, dow, DAY_NAMES, fmtTime, parts } from './time.js';
 import { isYomTov } from './booking.js';
-import { apptEnd, apptTravel, callReminderOn, canSendService, returnWeeksOf } from './model.js';
+import { apptEnd, apptTravel, birthParts, callReminderOn, canSendService, returnWeeksOf } from './model.js';
 
 export const WAZE = 'https://waze.com/ul/hsv8uy09dk';
 export const REVIEW_LINK = 'https://g.page/r/CSQyxj1iUAcsEBM/review';
@@ -348,8 +348,9 @@ export function comeBackTime(lastVisit, client, settings) {
 }
 
 export function birthdayTime(client, year) {
-  if (!client || !client.birthDate) return null;
-  const { m, d } = parts(client.birthDate);
+  const b = client && birthParts(client.birthDate);
+  if (!b) return null;
+  const { m, d } = b;
   const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
   const day = m === 2 && d === 29 && !leap ? 28 : d;
   const date = `${year}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;

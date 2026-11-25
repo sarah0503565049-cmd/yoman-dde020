@@ -2,9 +2,10 @@
 import { html, render, useState, useEffect, useLayoutEffect, useRef } from '../../vendor/preact-htm.js';
 import { Icon } from '../ui/icons.js';
 import { getStore } from '../data/store.js';
-import { publicMode, slotLength } from '../lib/booking.js';
-import { normalizePhone, formatPhone } from '../lib/model.js';
-import { DAY_NAMES, dow, parts, fmtTime, fmtDuration, fmtDateLong, isYmd } from '../lib/time.js';
+import { publicMode, slotLength, checkMe } from '../lib/booking.js';
+import { normalizePhone, formatPhone, fmtBirth } from '../lib/model.js';
+import { DAY_NAMES, dow, parts, fmtTime, fmtDuration, fmtDateLong, isYmd, todayYmd } from '../lib/time.js';
+import { BirthInput } from '../ui/birth-input.js';
 import { BOOK } from './config.js';
 import { HERO, LOGO, BUTTONS, TREATMENTS } from './content.js';
 
@@ -62,7 +63,6 @@ const unRiverSoon = () => { clearTimeout(riverTimer); riverTimer = setTimeout(un
 window.addEventListener('resize', unRiverSoon);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(unRiverSoon);
 
-
 history.scrollRestoration = 'manual';
 const depth = () => (history.state && history.state.bk) || 0;
 const readRoute = () => {
@@ -114,11 +114,9 @@ function useScrollRestore(ready) {
   }, [ready]);
 }
 
-
 const ME_KEY = 'book.me';
 const readMe = () => { try { return JSON.parse(sessionStorage.getItem(ME_KEY)) || {}; } catch { return {}; } };
 const writeMe = (v) => { try { sessionStorage.setItem(ME_KEY, JSON.stringify(v)); } catch { /* בלי אחסון: ממלאים שוב */ } };
-
 
 function Shell({ head = true, backTo = '/', top = false, foot, children }) {
   useLayoutEffect(unRiver);
@@ -167,7 +165,6 @@ function Notice({ kind = 'info', title, children }) {
   </div>`;
 }
 
-
 function TreatmentCard({ svc }) {
   const c = TREATMENTS[svc.id] || {};
   const img = c.image;
@@ -206,7 +203,6 @@ function ListScreen({ services }) {
   </${Shell}>`;
 }
 
-
 function DetailPart({ d }) {
   const items = d.items || [];
   const List = d.ordered ? 'ol' : 'ul';
@@ -240,7 +236,6 @@ function DetailScreen({ svc }) {
     <${AskButton} />
   </${Shell}>`;
 }
-
 
 function Picked({ svc, date, min }) {
   return html`<div class="card bk-pick">
@@ -300,22 +295,25 @@ function WhenScreen({ svc, query }) {
   </${Shell}>`;
 }
 
+const EMPTY_BIRTH = { d: '', m: '', y: '' };
 
 function MeScreen({ svc, date, min }) {
   useScrollRestore(true);
   const saved = readMe();
   const [name, setName] = useState(saved.name || '');
   const [phone, setPhone] = useState(saved.phone || '');
+  const [birth, setBirth] = useState(saved.birth || EMPTY_BIRTH);
   const [err, setErr] = useState({});
+  const today = todayYmd();
   const submit = (e) => {
     e.preventDefault();
-    const errs = {};
-    if (!name.trim()) errs.name = 'חסר שם';
-    if (!normalizePhone(phone)) errs.phone = 'מספר הטלפון לא תקין';
-    setErr(errs);
-    writeMe({ name, phone });
-    if (!Object.keys(errs).length) go(`sum/${svc.id}/${date}/${min}`);
+    const { errors, birthDate } = checkMe({ name, phone, birth }, today);
+    setErr(errors);
+    writeMe({ name, phone, birth, birthDate });
+    if (!Object.keys(errors).length) go(`sum/${svc.id}/${date}/${min}`);
+    else requestAnimationFrame(() => { const el = document.querySelector('.field.has-error'); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' }); });
   };
+  const clear = (k, set) => (v) => { set(v); if (err[k]) setErr({ ...err, [k]: undefined }); };
   const keyDown = (e) => {
     if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); e.target.blur(); }
   };
@@ -329,12 +327,17 @@ function MeScreen({ svc, date, min }) {
     <${Shell} backTo=${`/when/${svc.id}?d=${date}&m=${min}`} foot=${html`<button type="submit" class="btn btn-primary"><span>המשך</span></button>`}>
       <h1>הפרטים <em>שלך</em></h1>
       <${Picked} svc=${svc} date=${date} min=${min} />
-      ${field('bk-name', 'שם מלא', name, setName, err.name, { type: 'text', autocomplete: 'name', enterkeyhint: 'next' })}
-      ${field('bk-phone', 'טלפון', phone, setPhone, err.phone, { type: 'tel', dir: 'ltr', inputmode: 'tel', autocomplete: 'tel', enterkeyhint: 'done' })}
+      ${field('bk-name', 'שם מלא', name, clear('name', setName), err.name, { type: 'text', autocomplete: 'name', enterkeyhint: 'next', 'aria-required': 'true' })}
+      ${field('bk-phone', 'טלפון', phone, clear('phone', setPhone), err.phone, { type: 'tel', dir: 'ltr', inputmode: 'tel', autocomplete: 'tel', enterkeyhint: 'done', 'aria-required': 'true' })}
+      <div class=${cx('field', err.birth && 'has-error')}>
+        <label class="field-label" id="bk-birth-l" for="bk-birth">תאריך לידה <span class="field-opt">(לא חובה)</span></label>
+        <${BirthInput} id="bk-birth" value=${birth} onChange=${clear('birth', setBirth)} thisYear=${Number(today.slice(0, 4))}
+          labelledBy="bk-birth-l" invalid=${!!err.birth} describedBy=${err.birth ? 'bk-birth-e' : undefined} />
+        ${err.birth && html`<p class="field-error" id="bk-birth-e" role="alert">${err.birth}</p>`}
+      </div>
     </${Shell}>
   </form>`;
 }
-
 
 function SumScreen({ svc, date, min }) {
   useScrollRestore(true);
@@ -342,13 +345,14 @@ function SumScreen({ svc, date, min }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const ph = normalizePhone(me.phone);
-  useEffect(() => { if (!String(me.name || '').trim() || !ph) go(`me/${svc.id}/${date}/${min}`, { replace: true }); }, []);
+  const ok = !Object.keys(checkMe(me, todayYmd()).errors).length;
+  useEffect(() => { if (!ok) go(`me/${svc.id}/${date}/${min}`, { replace: true }); }, []);
   const book = async () => {
     if (busy) return;
     setBusy(true);
     setError(null);
     try {
-      const r = await store.bookOnline({ serviceId: svc.id, date, startMin: min, name: me.name, phone: me.phone }, { config: BOOK });
+      const r = await store.bookOnline({ serviceId: svc.id, date, startMin: min, name: me.name, phone: me.phone, birthDate: me.birthDate || null }, { config: BOOK });
       go(`done/${r.appointment.id}`, { replace: true });
     } catch (e) {
       setError(e && e.code === 'slot_taken' ? 'slot' : 'other');
@@ -371,10 +375,10 @@ function SumScreen({ svc, date, min }) {
       ${BOOK.showPrices && row('מחיר', html`<span class="money">${money(svc.price)}</span>`)}
       ${row('שם', String(me.name || '').trim())}
       ${row('טלפון', formatPhone(ph), true)}
+      ${me.birthDate && row('תאריך לידה', fmtBirth(me.birthDate))}
     </div>
   </${Shell}>`;
 }
-
 
 function DoneScreen({ id }) {
   const [a, setA] = useState(undefined);
@@ -397,7 +401,6 @@ function DoneScreen({ id }) {
     <${AskButton} />
   </${Shell}>`;
 }
-
 
 function App() {
   const r = useRoute();

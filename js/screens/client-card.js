@@ -4,7 +4,7 @@ import {
   Page, Section, Button, IconButton, Notice, List, Row, Card, Empty, Loader, StatusBadge, Money,
 } from '../ui/bits.js';
 import { useData } from '../ui/hooks.js';
-import { formatPhone, apptTotal, apptDiscount, lastNextStep, visitSummary, isPast, isVisit, FREE_REASONS } from '../lib/model.js';
+import { formatPhone, fmtBirth, apptTotal, apptDiscount, lastNextStep, visitSummary, isPast, isVisit, FREE_REASONS } from '../lib/model.js';
 import { fmtDate, fmtTime, todayYmd, nowMin } from '../lib/time.js';
 import { fmtMoney } from '../ui/bits.js';
 
@@ -56,7 +56,7 @@ export default function ClientCard({ params }) {
       </${Notice}>`}
       <div class="cl-lines">
         ${client.email && html`<div class="cl-line"><a href=${'mailto:' + client.email} dir="ltr">${client.email}</a></div>`}
-        ${client.birthDate && html`<div class="cl-line">תאריך לידה: ${fmtDate(client.birthDate)}</div>`}
+        ${client.birthDate && html`<div class="cl-line">תאריך לידה: ${fmtBirth(client.birthDate)}</div>`}
         ${client.notes && html`<div class="cl-notes is-usertext">${client.notes}</div>`}
         <div class="cl-line sub">${visits.length} ביקורים${visits.length ? ' · ביקור אחרון ' + fmtDate(visits[0].date) : ''}</div>
         ${discount > 0 && html`<div class="cl-line sub">הנחות שניתנו: ${fmtMoney(discount)}</div>`}

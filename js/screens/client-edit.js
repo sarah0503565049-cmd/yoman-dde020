@@ -1,12 +1,15 @@
 
 import { html, useState } from '../../vendor/preact-htm.js';
 import {
-  Page, Button, TextButton, Field, TextInput, DateInput, Select, Toggle, TextArea, Card, Empty, Loader, toast,
+  Page, Button, TextButton, Field, TextInput, Select, Toggle, TextArea, Card, Empty, Loader, toast,
 } from '../ui/bits.js';
+import { BirthInput, birthToParts } from '../ui/birth-input.js';
 import { useData } from '../ui/hooks.js';
 import { go, replace, back } from '../router.js';
 import { getStore } from '../data/store.js';
-import { formatPhone } from '../lib/model.js';
+import { formatPhone, birthFromParts } from '../lib/model.js';
+import { ME_ERRORS } from '../lib/booking.js';
+import { todayYmd } from '../lib/time.js';
 
 const RETURN_OPTIONS = [
   { value: null, label: 'לפי ברירת המחדל' },
@@ -24,7 +27,7 @@ function ClientForm({ client }) {
   const [name, setName] = useState(client ? client.name : '');
   const [phone, setPhone] = useState(client ? formatPhone(client.phone) : '');
   const [email, setEmail] = useState(client ? client.email || '' : '');
-  const [birth, setBirth] = useState(client ? client.birthDate || null : null);
+  const [birth, setBirth] = useState(birthToParts(client ? client.birthDate : null));
   const [callBefore, setCallBefore] = useState(client ? !!client.callBefore : false);
   const [optOut, setOptOut] = useState(client ? !!client.marketingOptOut : false);
   const [weeks, setWeeks] = useState(client ? client.returnWeeks ?? null : null);
@@ -39,6 +42,11 @@ function ClientForm({ client }) {
       setErr({ email: 'כתובת המייל לא תקינה' });
       return;
     }
+    const b = birthFromParts(birth, todayYmd());
+    if (b.error) {
+      setErr({ birth: ME_ERRORS[b.error] });
+      return;
+    }
     setBusy(true);
     setErr({});
     try {
@@ -47,7 +55,7 @@ function ClientForm({ client }) {
         name,
         phone,
         email: mail,
-        birthDate: birth || null,
+        birthDate: b.value,
         callBefore,
         marketingOptOut: optOut,
         returnWeeks: weeks,
@@ -86,8 +94,9 @@ function ClientForm({ client }) {
     <${Field} label="מייל" error=${err.email}>
       <${TextInput} type="email" dir="ltr" value=${email} onChange=${setEmail} inputmode="email" autocomplete="off" autocapitalize="off" />
     </${Field}>
-    <${Field} label="תאריך לידה">
-      <${DateInput} value=${birth} onChange=${setBirth} />
+    <${Field} label="תאריך לידה" id="ce-birth" error=${err.birth}>
+      <${BirthInput} id="ce-birth" value=${birth} onChange=${setBirth} thisYear=${Number(todayYmd().slice(0, 4))}
+        invalid=${!!err.birth} describedBy=${err.birth ? 'ce-birth-e' : undefined} />
     </${Field}>
     <${Card}>
       <${Toggle} label="לא קורא/ת הודעות, להתקשר" hint="במקום התזכורות בוואטסאפ: יומיים לפני כל תור תופיע לך תזכורת להתקשר במסך הבית. אפשר לשנות בכל תור."

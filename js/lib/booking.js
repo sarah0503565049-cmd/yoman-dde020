@@ -1,6 +1,6 @@
 
 import { addDays, diffDays, dow } from './time.js';
-import { apptTravel, clinicRanges, findConflicts, isActive } from './model.js';
+import { apptTravel, birthFromParts, clinicRanges, findConflicts, isActive, isMobilePhone } from './model.js';
 
 const HEB = new Intl.DateTimeFormat('en-u-ca-hebrew', { timeZone: 'UTC', month: 'long', day: 'numeric' });
 
@@ -82,3 +82,22 @@ export function bookableDays(lengthMin, ctx, { from, days = 42 } = {}) {
 
 export const cleanName = (s) => String(s || '').trim().replace(/\s+/g, ' ');
 export const sameName = (a, b) => cleanName(a).toLowerCase() === cleanName(b).toLowerCase();
+
+export const ME_ERRORS = {
+  name: 'כדי לקבוע תור צריך שם מלא',
+  phoneEmpty: 'כדי לקבוע תור צריך מספר נייד',
+  phone: 'צריך מספר נייד של 10 ספרות, שמתחיל ב-05',
+  partial: 'ליום ההולדת צריך לבחור יום וחודש',
+  invalid: 'אין תאריך כזה בלוח השנה',
+  future: 'התאריך הזה עוד לא הגיע',
+};
+
+export function checkMe({ name, phone, birth } = {}, today = null) {
+  const errors = {};
+  if (!cleanName(name)) errors.name = ME_ERRORS.name;
+  if (!String(phone || '').replace(/\D/g, '')) errors.phone = ME_ERRORS.phoneEmpty;
+  else if (!isMobilePhone(phone)) errors.phone = ME_ERRORS.phone;
+  const b = birthFromParts(birth || {}, today);
+  if (b.error) errors.birth = ME_ERRORS[b.error];
+  return { errors, birthDate: b.value };
+}
