@@ -85,7 +85,7 @@ html.bk-doc #app { height: auto; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: var(--g3) var(--g2) var(--g1);
+  padding: var(--g2) var(--g1) 0;
   background: var(--card);
   border: 1.5px solid var(--line);
   border-radius: var(--r-card);
@@ -95,19 +95,18 @@ html.bk-doc #app { height: auto; }
 .bk-tile:hover { border-color: var(--gold); box-shadow: 0 14px 30px rgba(120, 85, 45, .12); }
 .bk-tile:active { transform: scale(.99); }
 .bk-tile-go {
-  flex: 1 0 auto;
   width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--g1);
+  gap: 4px;
   color: inherit;
   text-decoration: none;
 }
 .bk-tile-go::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }   
 .bk-tile-go:focus-visible { outline: none; }
 .bk-tile-go:focus-visible::after { box-shadow: var(--ring); }
-.bk-tile-title { font-size: 1.9rem; line-height: 1.05; text-align: center; text-wrap: balance; }
+.bk-tile-title { margin-top: 2px; font-family: var(--font-body); font-size: 17px; font-weight: 600; line-height: 1.3; color: var(--espresso); text-align: center; text-wrap: balance; }
 .bk-tile-title .nw { white-space: nowrap; }   
 .bk-tile-meta { font-size: var(--fs-sub); font-weight: 600; color: var(--ink); line-height: 1.4; font-variant-numeric: tabular-nums; }
 .bk-tile-meta .money { color: var(--espresso); }
@@ -117,7 +116,7 @@ html.bk-doc #app { height: auto; }
   z-index: 1;
   display: inline-flex;
   align-items: center;
-  min-height: var(--touch);
+  min-height: 40px;
   padding-inline: var(--g2);
   font-size: var(--fs-sub);
   font-weight: 700;
@@ -130,8 +129,8 @@ html.bk-doc #app { height: auto; }
 .bk-tile.is-active { background: var(--olive-soft); border-color: var(--olive-deep); box-shadow: inset 0 0 0 1px var(--olive-deep); }
 .bk-tile-check {
   position: absolute;
-  top: 10px;
-  inset-inline-start: 10px;
+  top: 8px;
+  inset-inline-start: 8px;
   display: grid;
   place-items: center;
   width: 26px;
@@ -149,6 +148,7 @@ html.bk-doc #app { height: auto; }
   border: 1.5px solid var(--gold-soft);
 }
 .bk-circle.is-big { width: 120px; height: 120px; }
+.bk-tile .bk-circle { width: 72px; height: 72px; }
 
 .bk-circle.is-logo { display: grid; place-items: center; background: var(--cream); overflow: hidden; }
 .bk-circle.is-logo img { width: 74%; height: 74%; object-fit: contain; }
