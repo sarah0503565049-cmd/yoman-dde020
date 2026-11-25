@@ -176,9 +176,12 @@ function TreatmentTile({ svc, chosen }) {
   const hasDetails = (c.details || []).length > 0 || (c.intro || []).length > 0;
   const wa = publicMode(svc, BOOK) === 'whatsapp';
   const len = slotLength(svc, BOOK);
+  const bookHref = wa ? BOOK.whatsapp.href : '#/when/' + svc.id;
+  const ext = (on) => (on ? { target: '_blank', rel: 'noopener' } : {});
+  const pick = () => writeChosen(svc.id);
   return html`<article class=${cx('bk-tile', chosen && 'is-active')} id=${'t-' + svc.id}>
-    <a class="bk-tile-go" href=${wa ? BOOK.whatsapp.href : '#/when/' + svc.id} target=${wa ? '_blank' : undefined} rel=${wa ? 'noopener' : undefined}
-      aria-current=${chosen ? 'true' : undefined} onClick=${() => writeChosen(svc.id)}>
+    <a class="bk-tile-info" href=${hasDetails ? '#/t/' + svc.id : bookHref} ...${ext(!hasDetails && wa)}
+      aria-current=${chosen ? 'true' : undefined} onClick=${pick}>
       ${img ? html`<img class="bk-circle" src=${img.src} alt="" loading="lazy" decoding="async" />`
         : html`<span class="bk-circle is-logo" aria-hidden="true"><img src=${LOGO.black} alt="" loading="lazy" /></span>`}
       <h2 class="bk-tile-title">${tileName(svc.name)}</h2>
@@ -187,9 +190,11 @@ function TreatmentTile({ svc, chosen }) {
         ${BOOK.showPrices && len > 0 && html`<span aria-hidden="true"> · </span>`}
         ${len > 0 && html`<span>${fmtDuration(len)}</span>`}
       </span>
-      ${wa && html`<span class="bk-tile-wa"><${Icon} name="whatsapp" size=${18} /><span>בוואטסאפ</span></span>`}
     </a>
-    ${hasDetails && html`<a class="bk-tile-more" href=${'#/t/' + svc.id} onClick=${() => writeChosen(svc.id)}>לפרטים</a>`}
+    <a class="bk-tile-book" href=${bookHref} ...${ext(wa)} onClick=${pick}
+      aria-label=${`${BUTTONS.tileBook}${wa ? ' בוואטסאפ' : ''}: ${svc.name}`}>
+      ${wa && html`<${Icon} name="whatsapp" size=${18} />`}<span>${BUTTONS.tileBook}</span>
+    </a>
     ${chosen && html`<span class="bk-tile-check" aria-hidden="true"><${Icon} name="check" size=${16} /></span>`}
   </article>`;
 }

@@ -14,6 +14,7 @@ export const LOGO = {
 export const BUTTONS = {
   "details": "לפרטים על הטיפול",
   "book": "לקביעת תור",
+  "tileBook": "לקביעת התור",
   "ask": "שאלה לפני? בוואטסאפ 058-7801908",
   "askHref": "https://wa.me/972587801908"
 };
