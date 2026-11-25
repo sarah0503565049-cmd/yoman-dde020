@@ -189,7 +189,7 @@ function TreatmentTile({ svc, chosen }) {
     </a>
     <a class="bk-tile-book" href=${bookHref} ...${ext(wa)} onClick=${pick}
       aria-label=${`${BUTTONS.tileBook}${wa ? ' בוואטסאפ' : ''}: ${svc.name}`}>
-      ${wa && html`<${Icon} name="whatsapp" size=${18} />`}<span>${BUTTONS.tileBook}</span>
+      <span>${BUTTONS.tileBook}</span>
     </a>
     ${chosen && html`<span class="bk-tile-check" aria-hidden="true"><${Icon} name="check" size=${16} /></span>`}
   </article>`;
