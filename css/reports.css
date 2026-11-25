@@ -2,7 +2,7 @@
 
 
 .home-brand { display: flex; align-items: center; justify-content: flex-start; margin-bottom: calc(var(--g1) * -1); }
-.home-logo { width: 64px; height: 64px; object-fit: contain; margin-inline-start: -7px; }   
+.home-logo { width: auto; height: 76px; }   
 
 
 .bc { --bc-y: 30px; display: flex; flex-direction: column; gap: 6px; padding-top: 8px; }

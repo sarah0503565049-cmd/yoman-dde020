@@ -78,7 +78,7 @@ export default function Home() {
     return { settings, appts, clients };
   }, []);
 
-  const brand = html`<div class="home-brand"><img class="home-logo" src="img/logo.png" alt="Sarah B Cosmetics" width="500" height="500" decoding="async" /></div>`;
+  const brand = html`<div class="home-brand"><img class="home-logo" src="img/logo-round.png" alt="Sarah B Cosmetics" width="300" height="330" decoding="async" /></div>`;
   const hero = html`<${Hero} image="img/clinic-chair.jpg" title="היום" sub=${fmtDateLong(today)}
     actions=${data && data.settings.demo && html`<${Tag} tone="gold">נתוני דוגמה</${Tag}>`} />`;
   const newBtn = html`<${Button} href=${'/appt/new?date=' + today}>תור חדש</${Button}>`;

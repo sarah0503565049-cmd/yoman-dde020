@@ -1,6 +1,6 @@
 export const HERO = {
-  "image": "img/book/hero-chair.webp",
-  "imageWide": "img/book/hero-chair-wide.webp",
+  "image": "img/book/hero-sarah.webp",
+  "imageWide": "img/book/hero-sarah-wide.webp",
   "place": "הקליניקה · מושב רמת רזיאל, ליד מבשרת ציון",
   "title": "הרגליים שלך",
   "titleEm": "בידיים טובות",
@@ -8,8 +8,7 @@ export const HERO = {
 };
 
 export const LOGO = {
-  "white": "img/logo-white.png",
-  "black": "img/logo.png"
+  "black": "img/logo-round.png"
 };
 
 export const BUTTONS = {

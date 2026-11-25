@@ -1,5 +1,5 @@
 
-const CACHE = 'torim-v1';
+const CACHE = 'torim-v2';
 const CORE = [
   './',
   'index.html',
@@ -23,7 +23,7 @@ const CORE = [
   'fonts/Assistant-700.ttf',
   'icons/icon-192.png',
   'img/clinic-chair.jpg',
-  'img/logo.png',
+  'img/logo-round.png',
 ];
 
 self.addEventListener('install', (e) => {

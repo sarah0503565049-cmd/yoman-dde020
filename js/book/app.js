@@ -106,7 +106,7 @@ function Shell({ head = true, backTo = '/', top = false, foot, children }) {
   return html`<div class="bk">
     ${head && html`<header class="bk-head"><div class=${cx('bk-in bk-head-row', !backTo && 'no-back')}>
       ${backTo && html`<button type="button" class="icon-btn back-btn" aria-label="חזרה" onClick=${() => back(backTo)}><${Icon} name="back" /></button>`}
-      <a class="bk-head-logo" href="#/"><img src=${LOGO.black} alt="Sarah B Cosmetics" width="60" height="60" /></a>
+      <a class="bk-head-logo" href="#/"><img src=${LOGO.black} alt="Sarah B Cosmetics" width="300" height="330" /></a>
     </div></header>`}
     <main class=${cx('bk-main bk-in', top && 'is-top')}>${children}</main>
     ${foot && html`<div class="bk-foot"><div class="bk-in bk-foot-in">${foot}</div></div>`}
@@ -175,8 +175,6 @@ function ListScreen({ services }) {
         <source media="(min-width: 600px)" srcset=${HERO.imageWide} />
         <img class="bk-hero-img" src=${HERO.image} alt="" fetchpriority="high" />
       </picture>
-      <div class="bk-hero-shade" aria-hidden="true" />
-      <img class="bk-hero-logo" src=${LOGO.white} alt="Sarah B Cosmetics" width="500" height="500" />
     </section>
     <div class="bk-intro">
       <p class="bk-place">${HERO.place}</p>
@@ -185,7 +183,7 @@ function ListScreen({ services }) {
     </div>
     <div class="bk-list">${services.map((s) => html`<${TreatmentCard} key=${s.id} svc=${s} />`)}</div>
     <${AskButton} />
-    <div class="bk-end"><img src=${LOGO.black} alt="Sarah B Cosmetics" width="120" height="120" loading="lazy" /></div>
+    <div class="bk-end"><img src=${LOGO.black} alt="Sarah B Cosmetics" width="300" height="330" loading="lazy" /></div>
   </${Shell}>`;
 }
 

@@ -67,7 +67,7 @@ export default function ReportPrint({ query }) {
   return html`<${Page} title="תצוגה" em="להדפסה" back backTo="/reports" footer=${footer} class="print-page">
     <article class="doc">
       <header class="doc-head">
-        <img class="doc-logo" src="img/logo.png" alt="Sarah B Cosmetics" width="500" height="500" />
+        <img class="doc-logo" src="img/logo-round.png" alt="Sarah B Cosmetics" width="300" height="330" />
         <div class="doc-head-text">
           <h2 class="doc-title">${title}</h2>
           <p class="doc-meta">${period.label}</p>
