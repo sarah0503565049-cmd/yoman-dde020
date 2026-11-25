@@ -107,8 +107,10 @@ html.bk-doc #app { height: auto; }
 .bk-more { margin-block: -6px -2px; }
 
 .bk-detail-img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: var(--r-card); border: 1.5px solid var(--gold-soft); }
-.bk-detail-head { display: flex; align-items: center; gap: var(--g3); }
-.bk-detail-head h1 { flex: 1; min-width: 0; }
+
+.bk-detail-head { display: flex; flex-direction: column; align-items: stretch; gap: var(--g2); }
+.bk-detail-head .bk-circle { align-self: center; }
+.bk-detail-head h1 { min-width: 0; text-wrap: balance; }
 .bk-lead { font-size: 19px; line-height: 1.55; color: var(--espresso); }
 .bk-details { gap: var(--g3); }
 .bk-detail { display: flex; flex-direction: column; gap: var(--g1); }

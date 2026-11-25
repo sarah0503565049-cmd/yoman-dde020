@@ -16,7 +16,23 @@ const nameOf = (s) => String(s || '').replace(/ - /g, ' - ');
 const FIRST_DAYS = 9;
 
 const RIVER_SEL = '.bk-line, .bk-lead, .bk-detail p, .bk-li-t, .notice-text';
+function fitDetailH1() {
+  const h = document.querySelector('.bk-detail-head h1');
+  if (!h) return;
+  h.style.fontSize = '';
+  h.style.whiteSpace = 'nowrap';
+  const base = parseFloat(getComputedStyle(h).fontSize);
+  const range = document.createRange();
+  range.selectNodeContents(h);
+  const textW = range.getBoundingClientRect().width;
+  const colW = h.getBoundingClientRect().width;
+  if (!textW || !colW) { h.style.whiteSpace = ''; return; }
+  const size = Math.min(92, (base * colW) / textW);
+  if (size <= base) h.style.whiteSpace = '';
+  else h.style.fontSize = Math.floor(size * 10) / 10 + 'px';
+}
 function unRiver() {
+  fitDetailH1();
   for (const el of document.querySelectorAll(RIVER_SEL)) {
     el.style.textAlign = 'start';
     const range = document.createRange();
