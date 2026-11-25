@@ -46,6 +46,7 @@ const unRiverSoon = () => { clearTimeout(riverTimer); riverTimer = setTimeout(un
 window.addEventListener('resize', unRiverSoon);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(unRiverSoon);
 
+
 history.scrollRestoration = 'manual';
 const depth = () => (history.state && history.state.bk) || 0;
 const readRoute = () => {
@@ -97,9 +98,11 @@ function useScrollRestore(ready) {
   }, [ready]);
 }
 
+
 const ME_KEY = 'book.me';
 const readMe = () => { try { return JSON.parse(sessionStorage.getItem(ME_KEY)) || {}; } catch { return {}; } };
 const writeMe = (v) => { try { sessionStorage.setItem(ME_KEY, JSON.stringify(v)); } catch { /* בלי אחסון: ממלאים שוב */ } };
+
 
 function Shell({ head = true, backTo = '/', top = false, foot, children }) {
   useLayoutEffect(unRiver);
@@ -148,15 +151,15 @@ function Notice({ kind = 'info', title, children }) {
   </div>`;
 }
 
+
 function TreatmentCard({ svc }) {
   const c = TREATMENTS[svc.id] || {};
   const img = c.image;
   const hasDetails = (c.details || []).length > 0;
   return html`<article class="card bk-card" id=${'t-' + svc.id}>
-    ${img && img.shape === 'rect' && html`<img class="bk-card-img" src=${img.src} alt="" loading="lazy" decoding="async" />`}
     <div class="bk-card-body">
       <div class="bk-card-head">
-        ${img && img.shape === 'circle' && html`<img class="bk-circle" src=${img.src} alt="" loading="lazy" decoding="async" />`}
+        ${img && html`<img class="bk-circle" src=${img.src} alt="" loading="lazy" decoding="async" />`}
         <h2 class="bk-card-title">${nameOf(svc.name)}</h2>
       </div>
       ${c.line && html`<p class="bk-line">${c.line}</p>`}
@@ -187,14 +190,14 @@ function ListScreen({ services }) {
   </${Shell}>`;
 }
 
+
 function DetailScreen({ svc }) {
   useScrollRestore(true);
   const c = TREATMENTS[svc.id] || {};
   const img = c.image;
   return html`<${Shell} foot=${html`<${BookButton} svc=${svc} />`}>
-    ${img && img.shape === 'rect' && html`<img class="bk-detail-img" src=${img.src} alt="" decoding="async" />`}
     <div class="bk-detail-head">
-      ${img && img.shape === 'circle' && html`<img class="bk-circle is-big" src=${img.src} alt="" />`}
+      ${img && html`<img class="bk-circle is-big" src=${img.src} alt="" />`}
       <h1>${nameOf(svc.name)}</h1>
     </div>
     ${c.line && html`<p class="bk-lead">${c.line}</p>`}
@@ -208,6 +211,7 @@ function DetailScreen({ svc }) {
     <${AskButton} />
   </${Shell}>`;
 }
+
 
 function Picked({ svc, date, min }) {
   return html`<div class="card bk-pick">
@@ -267,6 +271,7 @@ function WhenScreen({ svc, query }) {
   </${Shell}>`;
 }
 
+
 function MeScreen({ svc, date, min }) {
   useScrollRestore(true);
   const saved = readMe();
@@ -300,6 +305,7 @@ function MeScreen({ svc, date, min }) {
     </${Shell}>
   </form>`;
 }
+
 
 function SumScreen({ svc, date, min }) {
   useScrollRestore(true);
@@ -340,6 +346,7 @@ function SumScreen({ svc, date, min }) {
   </${Shell}>`;
 }
 
+
 function DoneScreen({ id }) {
   const [a, setA] = useState(undefined);
   useEffect(() => { store.getAppointment(id).then(setA); }, [id]);
@@ -361,6 +368,7 @@ function DoneScreen({ id }) {
     <${AskButton} />
   </${Shell}>`;
 }
+
 
 function App() {
   const r = useRoute();
