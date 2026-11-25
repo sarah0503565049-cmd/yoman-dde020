@@ -9,7 +9,7 @@ import { DAY_LETTERS, addDays, dow, isYmd, weekDays, fmtTime, fmtDateLong, fmtWe
 import { expandBlocks } from '../lib/recur.js';
 import { layoutDay } from '../lib/lanes.js';
 import {
-  STATUS, apptEnd, apptTotal, apptVisual, clinicRanges, findConflicts, firstVisitIds, gridRange, isActive, isClosed, textOn,
+  STATUS, apptEnd, apptTotal, apptTravel, apptVisual, clinicRanges, findConflicts, firstVisitIds, gridRange, isActive, isClosed, textOn,
 } from '../lib/model.js';
 
 const ROW = { week: 24, day: 28 };   // גובה של 15 דקות
@@ -46,7 +46,7 @@ function fitLines(text, budget, innerW, charW) {
 function conflictLine(c, names, withBufferNote) {
   const what = c.type === 'block' ? c.ref.title : names.get(c.ref.clientId) || 'לקוח/ה';
   const when = c.type === 'block' && c.ref.allDay ? 'כל היום' : range(c.startMin, c.durationMin);
-  return `${when} · ${what}${withBufferNote && c.type === 'buffer' ? ' · בלי זמן ניקיון' : ''}`;
+  return `${when} · ${what}${c.travel ? ' · כולל נסיעה' : ''}${withBufferNote && c.type === 'buffer' ? ' · בלי זמן ניקיון' : ''}`;
 }
 
 function placeStyle(ev, ctx) {
@@ -327,7 +327,7 @@ export default function Calendar({ params, query }) {
     try {
       if (ev.kind === 'a') {
         const a = ev.a;
-        const conf = findConflicts({ date: d, startMin, durationMin: a.durationMin },
+        const conf = findConflicts({ date: d, startMin, durationMin: a.durationMin, items: a.items },
           L.data.appts.filter((x) => x.date === d), expandBlocks(L.data.blocks, d, d),
           { ignoreApptId: a.id, bufferMin: L.data.settings.bufferMin });
         if (conf.length) {
@@ -653,13 +653,21 @@ export default function Calendar({ params, query }) {
         const allDay = model.allDay.get(c.date).length > 0;
         return html`<div key=${c.date} class=${'cal-col' + (allDay ? ' is-allday' : '') + (c.date === today ? ' is-today' : '')} data-date=${c.date}>
           ${open.map((rg) => html`<div class="cal-open" style=${{ top: y(rg.a) + 'px', height: (y(rg.b) - y(rg.a)) + 'px' }} />`)}
-          ${buffer > 0 && c.items.filter((ev) => ev.kind === 'a' && c.date >= today && apptEnd(ev) < t).map((ev) => html`<div class="cal-strip"
-            style=${{
-              top: y(apptEnd(ev)) + 'px',
-              height: (Math.min(apptEnd(ev) + buffer, t) - apptEnd(ev)) / 15 * rowH + 'px',
-              insetInlineStart: `calc(${(ev.lane / ev.lanes) * 100}% + 1px)`,
-              width: `calc(${100 / ev.lanes}% - 2px)`,
-            }} />`)}
+          ${c.items.filter((ev) => ev.kind === 'a' && c.date >= today).flatMap((ev) => {
+            const strip = (from, len, before) => {
+              const a0 = Math.max(from, f);
+              const b0 = Math.min(from + len, t);
+              return b0 > a0 ? [html`<div class=${'cal-strip' + (before ? ' is-before' : '')} style=${{
+                top: y(a0) + 'px',
+                height: (b0 - a0) / 15 * rowH + 'px',
+                insetInlineStart: `calc(${(ev.lane / ev.lanes) * 100}% + 1px)`,
+                width: `calc(${100 / ev.lanes}% - 2px)`,
+              }} />`] : [];
+            };
+            const go = apptTravel(ev.a);
+            if (go > 0) return [...strip(ev.startMin - go, go, true), ...strip(apptEnd(ev), go, false)];
+            return buffer > 0 ? strip(apptEnd(ev), buffer, false) : [];
+          })}
           ${c.items.map((ev) => (ev.kind === 'a' ? (isWeek ? WeekAppt(ev, ctx) : DayAppt(ev, ctx)) : BlockTile(ev, ctx, !isWeek)))}
           ${ask && ask.date === c.date && html`<div class="cal-pick" style=${{ top: y(ask.min) + 'px', height: rowH + 'px' }} />`}
           ${c.date === today && now.min >= f && now.min <= t && html`<div class="cal-now" style=${{ top: y(now.min) + 'px' }} />`}

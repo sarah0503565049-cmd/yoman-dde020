@@ -162,18 +162,33 @@ export function rangesOverlap(aStart, aDur, bStart, bDur) {
   return aStart < bStart + bDur && bStart < aStart + aDur;
 }
 
+export function apptTravel(a) {
+  if (!a) return 0;
+  return Math.max(0, Number(a.travelMin) || 0, ...(a.items || []).map((it) => Number(it && it.travelMin) || 0));
+}
+
 export function findConflicts(cand, appts, blockInstances, opt = {}) {
   const out = [];
   const buffer = Math.max(0, Number(opt.bufferMin) || 0);
   const candEnd = cand.startMin + cand.durationMin;
+  const tC = apptTravel(cand);
+  const cFrom = cand.startMin - tC;
+  const cTo = candEnd + tC;
   for (const a of appts) {
     if (a.date !== cand.date || !isActive(a) || a.id === opt.ignoreApptId) continue;
-    if (rangesOverlap(cand.startMin, cand.durationMin, a.startMin, a.durationMin)) {
-      out.push({ type: 'appointment', startMin: a.startMin, durationMin: a.durationMin, ref: a });
+    const tA = apptTravel(a);
+    const aFrom = a.startMin - tA;
+    const aTo = a.startMin + a.durationMin + tA;
+    const real = rangesOverlap(cand.startMin, cand.durationMin, a.startMin, a.durationMin);
+    if (real || (cFrom < aTo && aFrom < cTo)) {
+      out.push(!real && tA > 0
+        ? { type: 'appointment', startMin: aFrom, durationMin: aTo - aFrom, travel: true, ref: a }
+        : { type: 'appointment', startMin: a.startMin, durationMin: a.durationMin, ref: a });
     } else if (buffer > 0) {
-      const aEnd = a.startMin + a.durationMin;
-      const gap = cand.startMin >= aEnd ? cand.startMin - aEnd : a.startMin - candEnd;
-      if (gap < buffer) {
+      const candLater = cFrom >= aTo;
+      const gap = candLater ? cFrom - aTo : aFrom - cTo;
+      const need = (candLater ? tA : tC) > 0 ? 0 : buffer;
+      if (gap < need) {
         out.push({ type: 'buffer', startMin: a.startMin, durationMin: a.durationMin, gapMin: gap, ref: a });
       }
     }

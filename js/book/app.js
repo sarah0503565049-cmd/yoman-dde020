@@ -133,7 +133,7 @@ function Shell({ head = true, backTo = '/', top = false, foot, children }) {
 }
 
 function Meta({ svc }) {
-  const len = publicMode(svc, BOOK) === 'book' ? slotLength(svc, BOOK) : svc.durationMin;
+  const len = slotLength(svc, BOOK);
   return html`<p class="bk-meta">
     ${BOOK.showPrices && html`<span class="money">${money(svc.price)}</span>`}
     ${BOOK.showPrices && len > 0 && html`<span aria-hidden="true">·</span>`}

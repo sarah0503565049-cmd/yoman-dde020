@@ -3,7 +3,7 @@ export const BOOK = {
   showPrices: true,
   whatsappOnly: ['svc-04'],
   showSeries: false,
-  blockMin: { 'svc-01': 120 },
+  blockMin: { 'svc-01': 120, 'svc-04': 90, 'svc-06': 75, 'svc-07': 60, 'svc-09': 45, 'svc-10': 60 },
 
   onlineStatus: 'booked',
   minNoticeMin: 12 * 60,

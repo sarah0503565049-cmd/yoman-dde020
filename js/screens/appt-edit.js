@@ -138,6 +138,7 @@ function ApptForm({ id, query, data, backTo }) {
     return {
       serviceId: svc.id, name: svc.name, shortName: svc.shortName, color: svc.color,
       price: svc.price, listPrice: svc.price, durationMin: svc.durationMin,
+      ...(svc.travelMin ? { travelMin: svc.travelMin } : {}),
     };
   }
 
@@ -214,13 +215,13 @@ function ApptForm({ id, query, data, backTo }) {
     try {
       const s = getStore();
       const [dayAppts, blocks] = await Promise.all([s.listAppointments({ from: date, to: date }), s.listBlocks()]);
-      const cand = { date, startMin, durationMin };
+      const cand = { date, startMin, durationMin, items };
       const found = findConflicts(cand, dayAppts, expandBlocks(blocks, date, date), { ignoreApptId: id, bufferMin: settings.bufferMin });
       if (found.length) {
         const real = found.some((c) => c.type !== 'buffer');
         const lines = found.map((c) => {
           const name = c.type === 'block' ? c.ref.title : (clientsById.get(c.ref.clientId) || {}).name || 'תור';
-          return `${fmtTime(c.startMin)} עד ${fmtTime(c.startMin + c.durationMin)} · ${name}${real && c.type === 'buffer' ? ' · בלי זמן ניקיון' : ''}`;
+          return `${fmtTime(c.startMin)} עד ${fmtTime(c.startMin + c.durationMin)} · ${name}${c.travel ? ' · כולל נסיעה' : ''}${real && c.type === 'buffer' ? ' · בלי זמן ניקיון' : ''}`;
         });
         const ok = await confirmSheet({
           title: real ? 'השעה הזאת תפוסה' : 'אין זמן ניקיון בין התורים',

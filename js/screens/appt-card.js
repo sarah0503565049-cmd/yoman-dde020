@@ -36,7 +36,7 @@ async function confirmRestore(a) {
   ]);
   const names = new Map(clients.map((c) => [c.id, c.name]));
   const found = findConflicts(
-    { date: a.date, startMin: a.startMin, durationMin: a.durationMin },
+    { date: a.date, startMin: a.startMin, durationMin: a.durationMin, items: a.items },
     appts, expandBlocks(blocks, a.date, a.date),
     { ignoreApptId: a.id, bufferMin: settings.bufferMin },
   );
@@ -44,7 +44,7 @@ async function confirmRestore(a) {
   const hard = found.some((f) => f.type !== 'buffer');
   const lines = found.map((f) => {
     const who = f.type === 'block' ? f.ref.title : names.get(f.ref.clientId) || 'תור';
-    const base = `${fmtTime(f.startMin)} עד ${fmtTime(f.startMin + f.durationMin)} · ${who}`;
+    const base = `${fmtTime(f.startMin)} עד ${fmtTime(f.startMin + f.durationMin)} · ${who}${f.travel ? ' · כולל נסיעה' : ''}`;
     return hard && f.type === 'buffer' ? `${base} · בלי זמן ניקיון` : base;
   });
   const pick = await askSheet({

@@ -1,17 +1,17 @@
 
 import { addDays, diffDays, dow, weekStart } from '../lib/time.js';
 import { expandBlocks } from '../lib/recur.js';
-import { findConflicts } from '../lib/model.js';
+import { apptTravel, findConflicts } from '../lib/model.js';
 
 const NOTIF_TITLE = 'זמן הודעות';
 
 const SERVICE_ROWS = [
-  ['טיפול בפטרת הציפורן - פוטותרפיה חד-פעמי', 'פוטותרפיה', 'פדיקור פרא-רפואי', 'treatment', 580, 90, '#8FB8E8'],
+  ['טיפול בפטרת הציפורן - פוטותרפיה חד-פעמי', 'פוטותרפיה', 'פדיקור פרא-רפואי', 'treatment', 580, 120, '#8FB8E8'],
   ['סדרת פוטותרפיה לפטרת הציפורן - 6 טיפולים', 'סדרת פוטותרפיה', 'פדיקור פרא-רפואי', 'series', 3400, 90, '#6FA3DD'],
   ['פדיקור פרא-רפואי מלא', 'פרא-רפואי', 'פדיקור פרא-רפואי', 'treatment', 390, 90, '#7FCB7A'],
-  ['פדיקור פרא-רפואי מלא כולל ביקור בית', 'ביקור בית', 'פדיקור פרא-רפואי', 'treatment', 620, 150, '#BFEBC3'],
+  ['פדיקור פרא-רפואי מלא כולל ביקור בית', 'ביקור בית', 'פדיקור פרא-רפואי', 'treatment', 620, 90, '#BFEBC3', 60],
   ['טיפול בחודרנית', 'חודרנית', 'פדיקור פרא-רפואי', 'treatment', 410, 60, '#EE8ACF'],
-  ['אורטונקסיה - יישור ציפורן חודרנית', 'אורטונקסיה', 'פדיקור פרא-רפואי', 'treatment', 550, 60, '#F0705A'],
+  ['אורטונקסיה - יישור ציפורן חודרנית', 'אורטונקסיה', 'פדיקור פרא-רפואי', 'treatment', 550, 75, '#F0705A'],
   ['הסרת יבלות ויראליות בשיטת פלזמה', 'יבלות', 'פדיקור פרא-רפואי', 'treatment', 390, 60, '#8ED6D0'],
   ['פדיקור טבעי', 'טבעי', 'פדיקור מפנק', 'treatment', 320, 60, '#D58BE0'],
   ['תרמותרפיה - טיפול פרפין', 'פרפין', 'טיפולי רגליים', 'treatment', 320, 45, '#F4D94E'],
@@ -52,10 +52,20 @@ function buildSettings() {
 }
 
 function buildServices() {
-  return SERVICE_ROWS.map(([name, shortName, category, kind, price, durationMin, color], i) => ({
+  return SERVICE_ROWS.map(([name, shortName, category, kind, price, durationMin, color, travelMin], i) => ({
     id: `svc-${pad2(i + 1)}`, name, shortName, category, kind, price, durationMin, color, active: true, sort: i + 1,
+    ...(travelMin ? { travelMin } : {}),
   }));
 }
+
+export const SERVICE_PATCH = {
+  id: '2026-11-25',
+  rows: [
+    { id: 'svc-01', was: { durationMin: 90 }, set: { durationMin: 120 } },
+    { id: 'svc-04', was: { durationMin: 150 }, set: { durationMin: 90, travelMin: 60 } },
+    { id: 'svc-06', was: { durationMin: 60 }, set: { durationMin: 75 } },
+  ],
+};
 
 function buildClients(today) {
   const created = `${addDays(today, -60)}T08:00:00.000Z`;
@@ -144,15 +154,15 @@ export function buildSeed(today) {
 
   const placed = [];
 
-  function fits(date, start, dur, free, ignoreNotif) {
+  function fits(date, start, dur, free, ignoreNotif, travelMin = 0) {
     if (!free && !clinicOf(date).some((r) => start >= r.from && start + dur <= r.to)) return false;
-    const cand = { date, startMin: start, durationMin: dur };
+    const cand = { date, startMin: start, durationMin: dur, travelMin };
     let conflicts = findConflicts(cand, placed, expandBlocks(blocks, date, date), { bufferMin: settings.bufferMin });
     if (ignoreNotif) conflicts = conflicts.filter((c) => !(c.type === 'block' && c.ref.title === NOTIF_TITLE));
     return conflicts.length === 0;
   }
 
-  function place(dur, win, opt) {
+  function place(dur, win, opt, travelMin = 0) {
     const past = win[1] < 0;
     const wins = opt.trio != null || opt.nextWorkday || opt.old ? [win] : [win, past ? [-6, -1] : [1, 12]];
     for (const [lo, hi] of wins) {
@@ -168,7 +178,7 @@ export function buildSeed(today) {
           starts.push(...(opt.pref || []));
           for (const r of clinicOf(date)) for (let m = r.from; m < r.to; m += 15) starts.push(m);
         }
-        for (const s of starts) if (fits(date, s, dur, !!opt.early, !!opt.early)) return { date, startMin: s };
+        for (const s of starts) if (fits(date, s, dur, !!opt.early, !!opt.early, travelMin)) return { date, startMin: s };
       }
     }
     throw new Error(`seed: לא נמצאה משבצת לתור (today=${today})`);
@@ -194,11 +204,13 @@ export function buildSeed(today) {
       return {
         serviceId: v.id, name: v.name, shortName: v.shortName, color: v.color,
         listPrice: v.price, price: opt.discount != null ? opt.discount : v.price, durationMin: v.durationMin,
+        ...(v.travelMin ? { travelMin: v.travelMin } : {}),
       };
     });
     const dur = items.reduce((a, it) => a + it.durationMin, 0);
-    const slot = opt.trio != null ? place(dur, [diffDays(today, anchor), diffDays(today, anchor)], opt)
-      : opt.nextWorkday ? place(dur, [nextWorkOff, nextWorkOff], opt) : place(dur, win, opt);
+    const travel = apptTravel({ items });
+    const slot = opt.trio != null ? place(dur, [diffDays(today, anchor), diffDays(today, anchor)], opt, travel)
+      : opt.nextWorkday ? place(dur, [nextWorkOff, nextWorkOff], opt, travel) : place(dur, win, opt, travel);
     if (opt.trio != null && slot.date !== anchor) throw new Error('seed: עוגן היום');
     const ap = {
       id: `ap-${pad2(i + 1)}`,
@@ -247,5 +259,5 @@ export function buildSeed(today) {
   const appointments = specs.map(({ i }) => byIndex.get(i))
     .sort((a, b) => a.date.localeCompare(b.date) || a.startMin - b.startMin || a.id.localeCompare(b.id));
 
-  return { version: 1, seededOn: today, settings, services, clients, appointments, blocks, audit: [] };
+  return { version: 1, seededOn: today, servicePatch: SERVICE_PATCH.id, settings, services, clients, appointments, blocks, audit: [] };
 }

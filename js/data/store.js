@@ -5,8 +5,18 @@ import {
 } from '../lib/model.js';
 import { expandBlocks } from '../lib/recur.js';
 import { publicMode, slotLength, freeStarts, bookableDays, cleanName, sameName } from '../lib/booking.js';
-import { buildSeed } from './seed.js';
+import { buildSeed, SERVICE_PATCH } from './seed.js';
 import { addHistory } from './seed-history.js';
+
+function patchServices(db) {
+  if (!db.settings || !db.settings.demo || db.servicePatch === SERVICE_PATCH.id) return false;
+  for (const p of SERVICE_PATCH.rows) {
+    const s = (db.services || []).find((x) => x.id === p.id);
+    if (s && Object.entries(p.was).every(([k, v]) => s[k] === v)) Object.assign(s, p.set);
+  }
+  db.servicePatch = SERVICE_PATCH.id;
+  return true;
+}
 
 export const STORAGE_KEY = 'torim.v1';
 const BAK_KEY = 'torim.v1.bak';
@@ -94,9 +104,10 @@ export function createStore({ storage, today, history = false } = {}) {
       try { st.setItem(BAK_KEY, raw); } catch { /* גיבוי נכשל, ממשיכים */ }
       db = seed();
       st.setItem(STORAGE_KEY, JSON.stringify(db));
-    } else if (history && db.settings && db.settings.demo && !db.historyAdded) {
-      addHistory(db, today || todayYmd());
-      st.setItem(STORAGE_KEY, JSON.stringify(db));
+    } else {
+      let dirty = patchServices(db);
+      if (history && db.settings && db.settings.demo && !db.historyAdded) { addHistory(db, today || todayYmd()); dirty = true; }
+      if (dirty) st.setItem(STORAGE_KEY, JSON.stringify(db));
     }
     return db;
   }
@@ -371,6 +382,7 @@ export function createStore({ storage, today, history = false } = {}) {
         items: [{
           serviceId: svc.id, name: svc.name, shortName: svc.shortName, color: svc.color,
           price: svc.price, listPrice: svc.price, durationMin: svc.durationMin,
+          ...(svc.travelMin ? { travelMin: svc.travelMin } : {}),
         }],
         note: nameDiffers ? `נקבע על שם ${typed}` : '', bookedName: typed,
         cancelledBy: null, cancelledAt: null, cancelReason: '', calledAt: null, visitNote: '', nextStep: '',

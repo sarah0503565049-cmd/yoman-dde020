@@ -1,6 +1,6 @@
 
 import { addDays, diffDays, dow } from './time.js';
-import { clinicRanges, findConflicts, isActive } from './model.js';
+import { apptTravel, clinicRanges, findConflicts, isActive } from './model.js';
 
 const HEB = new Intl.DateTimeFormat('en-u-ca-hebrew', { timeZone: 'UTC', month: 'long', day: 'numeric' });
 
@@ -50,7 +50,7 @@ export function freeStarts(date, lengthMin, ctx) {
   const dayAppts = appts.filter((a) => a.date === date && isActive(a));
   const anchors = [
     ceilTo(earliest, grid),
-    ...dayAppts.map((a) => ceilTo(a.startMin + a.durationMin + buffer, grid)),
+    ...dayAppts.map((a) => ceilTo(a.startMin + a.durationMin + (apptTravel(a) || buffer), grid)),
     ...dayBlocks.map((b) => ceilTo(b.startMin + b.durationMin, grid)),
   ];
 
