@@ -111,9 +111,18 @@ html.bk-doc #app { height: auto; }
 .bk-detail-head h1 { flex: 1; min-width: 0; }
 .bk-lead { font-size: 19px; line-height: 1.55; color: var(--espresso); }
 .bk-details { gap: var(--g3); }
-.bk-detail { display: flex; flex-direction: column; gap: 2px; }
+.bk-detail { display: flex; flex-direction: column; gap: var(--g1); }
 .bk-detail + .bk-detail { padding-top: var(--g3); border-top: 1px solid var(--line); }
 .bk-detail p { color: var(--espresso); }
+.bk-detail h3 { color: var(--olive-deep); }
+
+.bk-items { margin: 0; padding-inline-start: 1.35em; display: flex; flex-direction: column; gap: var(--g1); color: var(--espresso); }
+.bk-items li { padding-inline-start: 4px; }
+.bk-items li::marker { color: var(--olive-deep); font-weight: 700; }
+.bk-items.is-ordered { padding-inline-start: 1.6em; }
+.bk-items.is-ordered li::marker { font-variant-numeric: tabular-nums; }
+.bk-li-h { display: block; font-weight: 700; line-height: 1.4; }
+.bk-li-t { display: block; text-align: justify; text-wrap: pretty; }
 
 .bk-sec { display: flex; flex-direction: column; gap: var(--g2); scroll-margin-top: 84px; }
 .bk-pick { gap: 4px; }

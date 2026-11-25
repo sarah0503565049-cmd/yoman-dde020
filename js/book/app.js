@@ -15,7 +15,7 @@ const dayChip = (ymd) => { const { d, m } = parts(ymd); return `${DAY_NAMES[dow(
 const nameOf = (s) => String(s || '').replace(/ - /g, ' - ');
 const FIRST_DAYS = 9;
 
-const RIVER_SEL = '.bk-line, .bk-lead, .bk-detail p, .notice-text';
+const RIVER_SEL = '.bk-line, .bk-lead, .bk-detail p, .bk-li-t, .notice-text';
 function unRiver() {
   for (const el of document.querySelectorAll(RIVER_SEL)) {
     el.style.textAlign = 'start';
@@ -155,7 +155,7 @@ function Notice({ kind = 'info', title, children }) {
 function TreatmentCard({ svc }) {
   const c = TREATMENTS[svc.id] || {};
   const img = c.image;
-  const hasDetails = (c.details || []).length > 0;
+  const hasDetails = (c.details || []).length > 0 || (c.intro || []).length > 0;
   return html`<article class="card bk-card" id=${'t-' + svc.id}>
     <div class="bk-card-body">
       <div class="bk-card-head">
@@ -191,22 +191,35 @@ function ListScreen({ services }) {
 }
 
 
+function DetailPart({ d }) {
+  const items = d.items || [];
+  const List = d.ordered ? 'ol' : 'ul';
+  return html`<section class="bk-detail">
+    ${d.title && html`<h3>${d.title}</h3>`}
+    ${(d.paras || []).map((p, j) => html`<p key=${j}>${p}</p>`)}
+    ${items.length > 0 && html`<${List} class=${cx('bk-items', d.ordered && 'is-ordered')}>
+      ${items.map((it, j) => html`<li key=${j}>
+        ${it.head && html`<span class="bk-li-h">${it.head}</span>`}
+        ${it.text && html`<span class="bk-li-t">${it.text}</span>`}
+      </li>`)}
+    </${List}>`}
+  </section>`;
+}
+
 function DetailScreen({ svc }) {
   useScrollRestore(true);
   const c = TREATMENTS[svc.id] || {};
   const img = c.image;
+  const intro = (c.intro || []).length ? c.intro : (c.line ? [c.line] : []);
   return html`<${Shell} foot=${html`<${BookButton} svc=${svc} />`}>
     <div class="bk-detail-head">
       ${img && html`<img class="bk-circle is-big" src=${img.src} alt="" />`}
       <h1>${nameOf(svc.name)}</h1>
     </div>
-    ${c.line && html`<p class="bk-lead">${c.line}</p>`}
+    ${intro.map((p, i) => html`<p class="bk-lead" key=${i}>${p}</p>`)}
     <${Meta} svc=${svc} />
     ${(c.details || []).length > 0 && html`<div class="card bk-details">
-      ${c.details.map((d, i) => html`<div class="bk-detail" key=${i}>
-        ${d.title && html`<h3>${d.title}</h3>`}
-        <p>${d.text}</p>
-      </div>`)}
+      ${c.details.map((d, i) => html`<${DetailPart} key=${i} d=${d} />`)}
     </div>`}
     <${AskButton} />
   </${Shell}>`;
