@@ -19,7 +19,7 @@ export const TIMING = {
   returnAtMin: 10 * 60,         // 19: בשעה 10:00 ביום שמגיע
   birthdayAtMin: 9 * 60,        // 21: בבוקר של יום ההולדת
   freedSlotMinDaysLater: 7,     // 13: למי שהתור הבא שלו/ה לפחות שבוע אחרי השעה שהתפנתה
-  freedSlotMinNoticeMin: ONLINE_MIN_NOTICE_MIN,   // 13: לא מציעים ללקוחות שעה שמתחילה בעוד פחות מ-24 שעות; שרה מקבלת הודעה (freedSlotTooSoon)
+  freedSlotMinNoticeMin: ONLINE_MIN_NOTICE_MIN,
   quiet: { guardMin: 60, eveLastMin: 12 * 60 },
   candleMin: [965, 990, 1010, 1095, 1115, 1135, 1135, 1100, 1060, 965, 955, 955],
   exitMin:   [1080, 1100, 1185, 1205, 1225, 1235, 1235, 1220, 1190, 1150, 1055, 1055],
