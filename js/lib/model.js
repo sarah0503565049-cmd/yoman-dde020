@@ -1,5 +1,6 @@
 
-import { diffDays } from './time.js';
+import { addDays, diffDays, dow } from './time.js';
+import { isYomTov } from './booking.js';
 
 export const STATUS = {
   pending: { label: 'ממתין לאישור', short: 'ממתין' },
@@ -136,15 +137,31 @@ export function apptDiscount(a) {
   }, 0);
 }
 
+export const CALL_DAYS_DEFAULT = 2;
+
+export function callReminderOn(a, client) {
+  if (a && a.callReminder != null) return !!a.callReminder;
+  return !!(client && client.callBefore);
+}
+export function callDaysOf(a) {
+  const n = a ? a.callDaysBefore : null;
+  return n == null || n === '' || !Number.isFinite(Number(n)) ? CALL_DAYS_DEFAULT : Number(n);
+}
+
+export function callDate(a) {
+  let d = addDays(a.date, -callDaysOf(a));
+  while (dow(d) === 6 || isYomTov(d)) d = addDays(d, -1);
+  return d;
+}
+
 export function callsDue(appts, clientsById, today, tomorrow, nowMinutes) {
   const get = (id) => (clientsById instanceof Map ? clientsById.get(id) : clientsById[id]);
   return appts
     .filter((a) => {
       if (a.calledAt || !['booked', 'confirmed', 'pending'].includes(a.status)) return false;
-      const c = get(a.clientId);
-      if (!c || !c.callBefore) return false;
-      if (a.date === tomorrow) return true;
-      return a.date === today && a.startMin > nowMinutes;
+      if (!callReminderOn(a, get(a.clientId))) return false;
+      if (a.date < today || (a.date === today && a.startMin <= nowMinutes)) return false;
+      return callDate(a) <= today;
     })
     .sort((x, y) => (x.date === y.date ? x.startMin - y.startMin : x.date < y.date ? -1 : 1));
 }

@@ -1,9 +1,7 @@
 
 
-
 .home-brand { display: flex; align-items: center; justify-content: flex-start; margin-bottom: calc(var(--g1) * -1); }
 .home-logo { width: auto; height: 76px; }   
-
 
 .bc { --bc-y: 30px; display: flex; flex-direction: column; gap: 6px; padding-top: 8px; }
 .bc-body { display: flex; height: var(--bc-h); }
@@ -38,9 +36,7 @@
 .bc-swatch { display: inline-block; flex: none; width: 13px; height: 13px; border-radius: 3px; background: var(--data); }
 .bc-swatch.is-booked { background: repeating-linear-gradient(135deg, var(--data) 0 1.5px, var(--data-tint) 1.5px 5px); }
 
-
 .mc .bc, .rp-chart .bc { margin-inline: -6px; }
-
 
 .mc { gap: 4px; padding-bottom: 12px; }
 .mc-head { display: flex; align-items: center; justify-content: space-between; gap: var(--g1); min-height: 28px; }
@@ -57,6 +53,14 @@
 .mc-legend { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px var(--g2); margin-top: 2px; font-size: var(--fs-small); color: var(--ink); }
 .mc-legend > span { display: inline-flex; align-items: center; gap: 6px; }
 
+.mc-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--g2); }
+.mc-total { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mc-total-l { font-size: var(--fs-sub); font-weight: 600; color: var(--ink); text-align: start; }
+.mc-totals .mc-booked { white-space: normal; text-align: start; }
+.mc-filters { display: flex; flex-direction: column; gap: var(--g1); margin-top: var(--g1); }
+.mc-readout { font-size: var(--fs-sub); color: var(--ink); text-align: start; line-height: 1.35; margin-top: 2px; }
+.mc-readout strong { color: var(--espresso); }
+.mc-note { text-align: start; }
 
 .rp-period { display: flex; flex-direction: column; gap: var(--g2); }
 .rp-nav { display: flex; align-items: center; gap: var(--g1); min-height: var(--touch); }
@@ -92,7 +96,6 @@
 .rp-export { display: flex; flex-direction: column; gap: var(--g2); margin-top: var(--g1); }
 .rp-note { text-align: start; }
 
-
 .rp-table-card { padding: 0; overflow: hidden; }
 .rp-table { width: 100%; border-collapse: collapse; }
 .rp-table th, .rp-table td { padding: 10px var(--g1); text-align: start; vertical-align: top; }
@@ -107,7 +110,6 @@
 .rp-table tfoot th, .rp-table tfoot td { font-weight: 700; color: var(--espresso); }
 .rp-item { display: block; overflow-wrap: anywhere; line-height: 1.35; }
 .rp-item-sub { display: block; font-size: var(--fs-small); font-weight: 400; color: var(--ink); }
-
 
 .doc { display: flex; flex-direction: column; gap: var(--g2); padding: var(--pad); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card); }
 .doc-head { display: flex; align-items: center; gap: var(--g2); padding-bottom: var(--g2); border-bottom: 1px solid var(--line); }

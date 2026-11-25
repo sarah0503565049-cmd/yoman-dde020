@@ -2,20 +2,21 @@
 import { html, useState, useEffect, useRef } from '../../vendor/preact-htm.js';
 import {
   Page, Section, Card, Button, TextButton, TextInput, IconButton, Chip, Chips, Notice, Empty, Loader, Sheet, Field, NumberInput, TextArea,
-  StatusBadge, Tag, Dot, Money, fmtMoney, toast, askSheet, confirmSheet,
+  StatusBadge, Tag, Dot, Money, Toggle, Select, fmtMoney, toast, askSheet, confirmSheet,
 } from '../ui/bits.js';
 import { Icon } from '../ui/icons.js';
 import { useData } from '../ui/hooks.js';
 import { back as routerBack, go, afterPendingPop } from '../router.js';
 import { getStore } from '../data/store.js';
 import {
-  STATUS, CANCELLED_BY, FREE_REASONS, apptTotal, apptDiscount, apptEnd, findConflicts, formatPhone,
+  STATUS, CANCELLED_BY, FREE_REASONS, apptTotal, apptDiscount, apptEnd, findConflicts, formatPhone, callReminderOn, callDaysOf, callDate,
 } from '../lib/model.js';
 import { expandBlocks } from '../lib/recur.js';
-import { fmtDateLong, fmtTime, fmtDuration } from '../lib/time.js';
+import { fmtDateLong, fmtTime, fmtDuration, todayYmd } from '../lib/time.js';
 
 const FALLBACK = '/cal';
 const CHIP_STATUSES = ['booked', 'confirmed', 'arrived', 'noshow'];
+const CALL_DAYS = [{ value: 1, label: 'יום לפני' }, { value: 2, label: 'יומיים לפני' }, { value: 3, label: '3 ימים לפני' }, { value: 4, label: '4 ימים לפני' }];
 
 const nextApptPath = (a) => {
   const first = a.items && a.items[0];
@@ -54,7 +55,6 @@ async function confirmRestore(a) {
   });
   return pick === true;
 }
-
 
 function TillSheet({ open, appt, methods, onClose }) {
   const [method, setMethod] = useState(null);
@@ -140,7 +140,6 @@ function TillSheet({ open, appt, methods, onClose }) {
   </${Sheet}>`;
 }
 
-
 function CancelSheet({ open, busy, onClose, onSubmit }) {
   const [who, setWho] = useState(null);
   const [reason, setReason] = useState('');
@@ -159,7 +158,6 @@ function CancelSheet({ open, busy, onClose, onSubmit }) {
     </${Field}>
   </${Sheet}>`;
 }
-
 
 export default function ApptCard({ params }) {
   const { data, loading } = useData(async (s) => {
@@ -248,6 +246,7 @@ export default function ApptCard({ params }) {
   const setStatus = (st) => act(() => getStore().setAppointmentStatus(appt.id, st));
   const approve = () => act(() => getStore().setAppointmentStatus(appt.id, 'booked'), 'התור אושר');
   const called = () => act(() => getStore().patchAppointment(appt.id, { calledAt: new Date().toISOString() }));
+  const setCall = (patch) => act(() => getStore().patchAppointment(appt.id, patch), 'נשמר');
 
   const cancel = async (who, reason) => {
     if (!who || cancelBusy) return;
@@ -295,6 +294,7 @@ export default function ApptCard({ params }) {
   const paid = st === 'paid';
   const free = st === 'free';
   const open = !cancelled && !paid && !free;
+  const callOn = callReminderOn(appt, client);
   const discount = apptDiscount(appt);
   const phone = client && client.phone;
   const digits = String(phone || '').replace(/\D/g, '');
@@ -335,11 +335,16 @@ export default function ApptCard({ params }) {
       ${cancelled && appt.cancelReason && html`<p class="ac-note is-usertext">הסיבה: ${appt.cancelReason}</p>`}
     </${Card}>
 
-    ${open && client && client.callBefore && html`<${Notice} kind="warn" icon="phone" title="להתקשר לפני התור">
-      ${appt.calledAt
-        ? 'סומן שהתקשרת'
-        : html`<${Button} kind="soft" class="ac-callbtn" onClick=${called}>התקשרתי</${Button}>`}
-    </${Notice}>`}
+    ${open && appt.date >= todayYmd() && html`<${Card} class=${callOn && !appt.calledAt ? 'ac-call is-due' : 'ac-call'}>
+      <${Toggle} label="להתקשר לתזכורת" hint="במקום התזכורות בוואטסאפ, תופיע לך תזכורת להתקשר במסך הבית."
+        checked=${callOn} onChange=${(v) => setCall({ callReminder: v })} />
+      ${callOn && html`<${Field} label="מתי להתקשר" hint=${'התזכורת תופיע ב' + fmtDateLong(callDate(appt))}>
+        <${Select} value=${callDaysOf(appt)} onChange=${(v) => setCall({ callDaysBefore: v })} options=${CALL_DAYS} />
+      </${Field}>`}
+      ${callOn && (appt.calledAt
+        ? html`<p class="ac-note">סומן שהתקשרת</p>`
+        : html`<${Button} kind="soft" class="ac-callbtn" icon="phone" onClick=${called}>התקשרתי</${Button}>`)}
+    </${Card}>`}
 
     ${st === 'pending' && html`<${Button} onClick=${approve}>אישור התור</${Button}>`}
 

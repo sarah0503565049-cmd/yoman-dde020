@@ -7,7 +7,6 @@ export const VAT_RATE = 18;
 const pad = (n) => String(n).padStart(2, '0');
 const get = (m, k) => (m instanceof Map ? m.get(k) : m ? m[k] : undefined);
 
-
 export const MONTH_SHORT = ['ינו', 'פבר', 'מרץ', 'אפר', 'מאי', 'יונ', 'יול', 'אוג', 'ספט', 'אוק', 'נוב', 'דצמ'];
 
 export function monthStart(ymd) {
@@ -59,7 +58,6 @@ export function periodLabel(preset, from, to) {
   return from === to ? fmtDate(from) : `${fmtDate(from)} עד ${fmtDate(to)}`;
 }
 
-
 export const toAgorot = (v) => Math.round((Number(v) || 0) * 100);
 
 export function vatOf(totalAg, rate = VAT_RATE) {
@@ -71,7 +69,6 @@ export function vatSplit(total, rate = VAT_RATE) {
   const v = vatOf(t, rate);
   return { total: t / 100, net: (t - v) / 100, vat: v / 100 };
 }
-
 
 export function rowTime(a) {
   const at = a && a.payment && a.payment.paidAt;
@@ -218,7 +215,6 @@ export function incomeSummary(rows, { methods = [], free = [] } = {}) {
   };
 }
 
-
 export function bucketUnit(from, to) {
   const n = diffDays(from, to) + 1;
   if (n <= 31) return 'day';
@@ -256,7 +252,6 @@ export function incomeByBucket(rows, from, to, unit) {
   return list.map(({ totalAg, ...b }) => ({ ...b, total: totalAg / 100 }));
 }
 
-
 export const OPEN_STATUSES = ['pending', 'booked', 'confirmed', 'arrived'];
 
 export function monthlyIncome(appts, today, { months = 12, ahead = 2, servicesById = null } = {}) {
@@ -283,6 +278,92 @@ export function monthlyIncome(appts, today, { months = 12, ahead = 2, servicesBy
   return list.map(({ paidAg, bookedAg, ...m }) => ({ ...m, paid: paidAg / 100, booked: bookedAg / 100 }));
 }
 
+const catOf = (item, servicesById) => {
+  const s = get(servicesById, item && item.serviceId);
+  return (s && s.category) || (item && item.category) || null;
+};
+
+const keyOf = (unit, ymd) => (unit === 'month' ? ymd.slice(0, 7) : unit === 'week' ? weekStart(ymd) : ymd);
+
+function importedValue(v, category) {
+  if (v == null) return 0;
+  if (typeof v === 'number') return category ? null : v;
+  if (!category) return Number(v.total) || 0;
+  return v.byCategory && v.byCategory[category] != null ? Number(v.byCategory[category]) || 0 : null;
+}
+
+export function incomeSeries(appts, today, opt = {}) {
+  const { unit = 'month', servicesById = null, category = null, imported = null, ahead = 2, weeks = 12, aheadWeeks = 4 } = opt;
+  const make = (u) => {
+    const list = [];
+    if (u === 'month') {
+      const first = `${today.slice(0, 4)}-01-01`;
+      const cur = monthStart(today);
+      for (let s = first; s <= addMonths(cur, ahead); s = addMonths(s, 1)) {
+        list.push({ key: s.slice(0, 7), from: s, to: monthEnd(s), short: MONTH_SHORT[parts(s).m - 1], narrow: String(parts(s).m), label: monthLabel(s), current: s === cur, future: s > cur });
+      }
+    } else if (u === 'week') {
+      const cur = weekStart(today);
+      for (let s = addDays(cur, -7 * (weeks - 1)); s <= addDays(cur, 7 * aheadWeeks); s = addDays(s, 7)) {
+        list.push({ key: s, from: s, to: addDays(s, 6), short: fmtDayMonth(s), narrow: '', label: `${fmtDayMonth(s)} עד ${fmtDayMonth(addDays(s, 6))}`, current: s === cur, future: s > cur });
+      }
+    } else {
+      for (let d = monthStart(today); d <= monthEnd(today); d = addDays(d, 1)) {
+        list.push({ key: d, from: d, to: d, short: String(parts(d).d), narrow: String(parts(d).d), label: fmtDateLong(d), current: d === today, future: d > today });
+      }
+    }
+    return list.map((b) => ({ ...b, paidAg: 0, bookedAg: 0, imported: false }));
+  };
+
+  const fill = (u, list) => {
+    const byKey = new Map(list.map((b) => [b.key, b]));
+    const upTo = imported && imported.upTo;
+    const isImported = (k) => u === 'month' && upTo && k <= upTo;
+    let gap = false;
+    for (const a of appts || []) {
+      if (a.status === 'paid') {
+        const pd = payDate(a);
+        const b = byKey.get(keyOf(u, pd));
+        if (!b || (upTo && pd.slice(0, 7) <= upTo && u === 'month')) continue;
+        for (const l of paymentLines(a, servicesById)) {
+          if (category && (l.tip || catOf(l, servicesById) !== category)) continue;
+          b.paidAg += l.totalAg;
+        }
+      } else if (OPEN_STATUSES.includes(a.status) && a.date >= today) {
+        const b = byKey.get(keyOf(u, a.date));
+        if (!b) continue;
+        for (const it of a.items || []) {
+          if (category && catOf(it, servicesById) !== category) continue;
+          b.bookedAg += toAgorot(it.price);
+        }
+      }
+    }
+    for (const b of list) {
+      if (!isImported(b.key)) continue;
+      const v = importedValue(imported.months && imported.months[b.key], category);
+      if (v == null) { gap = true; continue; }
+      b.paidAg = toAgorot(v);
+      b.imported = true;
+    }
+    return gap;
+  };
+
+  const months = make('month');
+  const gap = fill('month', months);
+  let bars = months;
+  if (unit !== 'month') { bars = make(unit); fill(unit, bars); }
+  if (unit !== 'day') while (bars.length && bars[bars.length - 1].future && bars[bars.length - 1].bookedAg === 0) bars.pop();
+  const out = (b) => { const { paidAg, bookedAg, ...rest } = b; return { ...rest, paid: paidAg / 100, booked: bookedAg / 100 }; };
+  const cur = months.find((m) => m.current);
+  const yearAg = months.filter((m) => !m.future).reduce((s, m) => s + m.paidAg, 0);
+  return {
+    bars: bars.map(out),
+    month: { paid: cur.paidAg / 100, booked: cur.bookedAg / 100 },
+    year: { paid: yearAg / 100 },
+    importedGap: gap,
+  };
+}
+
 export const NICE_STEPS = [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10];
 export function niceMax(max) {
   if (!(max > 0)) return 1000;
@@ -290,7 +371,6 @@ export function niceMax(max) {
   for (const k of NICE_STEPS) if (Math.round(k * p * 1000) / 1000 >= max) return Math.round(k * p * 1000) / 1000;
   return 10 * p;
 }
-
 
 export function salesRows(rows, { group = 'all', q = '' } = {}) {
   const map = new Map();
@@ -319,7 +399,6 @@ export function salesTotals(list) {
   for (const x of list) { qty += x.qty; ag += toAgorot(x.total); }
   return { qty, total: ag / 100 };
 }
-
 
 export function csvCell(v) {
   if (v == null) return '';

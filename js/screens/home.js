@@ -1,16 +1,16 @@
 
-import { html, useState } from '../../vendor/preact-htm.js';
+import { html, useState, useEffect } from '../../vendor/preact-htm.js';
 import {
   Page, Hero, Section, Button, IconButton, Tile, Tiles, Money, Notice, List, Row, Dot, StatusBadge, Tag, Card, Empty,
-  toast, confirmSheet, fmtMoney,
+  Segmented, Select, toast, confirmSheet, fmtMoney,
 } from '../ui/bits.js';
 import { BarChart, yearMark, Swatch } from '../ui/charts.js';
 import { reportHref } from '../ui/period.js';
-import { incomeRows, monthlyIncome } from '../lib/reports.js';
+import { incomeRows, incomeSeries } from '../lib/reports.js';
 import { Icon } from '../ui/icons.js';
-import { useData, useNow } from '../ui/hooks.js';
+import { useData, useNow, useSessionState } from '../ui/hooks.js';
 import { getStore } from '../data/store.js';
-import { addDays, fmtDate, fmtDateLong, fmtDayMonth, fmtTime } from '../lib/time.js';
+import { addDays, diffDays, dow, DAY_NAMES, fmtDate, fmtDateLong, fmtDayMonth, fmtTime } from '../lib/time.js';
 import {
   apptEnd, apptTotal, apptVisual, callsDue, firstVisitIds, isActive, needsNextAppointment,
 } from '../lib/model.js';
@@ -19,6 +19,25 @@ const range = (a) => `${fmtTime(a.startMin)} עד ${fmtTime(apptEnd(a))}`;
 const treat = (a) => (a.items || []).map((it) => it.shortName || it.name).join(' + ');
 const firstServiceId = (a) => (a.items && a.items[0] && a.items[0].serviceId) || '';
 
+function whenLabel(date, today) {
+  const n = diffDays(today, date);
+  if (n <= 0) return 'היום';
+  if (n === 1) return 'מחר';
+  if (n === 2) return 'מחרתיים';
+  return `ביום ${DAY_NAMES[dow(date)]}, ${fmtDayMonth(date)}`;
+}
+
+function useCallsToast(count, today) {
+  useEffect(() => {
+    if (!count) return;
+    const key = 'home.callsToast';
+    try { if (sessionStorage.getItem(key) === today) return; sessionStorage.setItem(key, today); } catch { /* חסום */ }
+    toast(count === 1 ? 'להתקשר היום: לקוח/ה אחד/ת' : `להתקשר היום: ${count} לקוחות`, {
+      action: { label: 'לרשימה', onClick: () => scrollToId('calls') },
+    });
+  }, [count, today]);
+}
+
 function daysAgo(n) {
   if (n <= 0) return 'היום';
   if (n === 1) return 'לפני יום';
@@ -26,31 +45,54 @@ function daysAgo(n) {
   return `לפני ${n} ימים`;
 }
 
-function MonthChart({ appts, today }) {
+const UNITS = [{ value: 'day', label: 'יומי' }, { value: 'week', label: 'שבועי' }, { value: 'month', label: 'חודשי' }];
+const UNIT_P = { day: 'day', week: 'week', month: 'month' };
+
+function IncomeChart({ appts, today, services, settings }) {
+  const [unit, setUnit] = useSessionState('home.chart.unit', 'month');
+  const [cat, setCat] = useSessionState('home.chart.cat', '');
   const [hover, setHover] = useState(null);
-  const months = monthlyIncome(appts, today);
-  const cur = months.find((m) => m.current);
-  const shown = months.find((m) => m.key === hover) || cur;
-  const anyBooked = months.some((m) => m.booked > 0);
-  const bars = months.map((m, i) => ({
-    key: m.key, short: m.short, narrow: String(Number(m.key.slice(5))), value: m.paid, booked: m.booked, current: m.current,
-    year: yearMark(months, i),
-    href: reportHref('/reports/income', { p: 'month', d: m.from }),
-    aria: `${m.label}: הכנסות ${fmtMoney(m.paid)}${m.booked > 0 ? `, כבר נקבע ${fmtMoney(m.booked)}` : ''}`,
+  const servicesById = new Map((services || []).map((x) => [x.id, x]));
+  const cats = (settings.categories || []).filter((c) => (services || []).some((x) => x.category === c));
+  const category = cats.includes(cat) ? cat : '';
+  const s = incomeSeries(appts, today, { unit, servicesById, category: category || null, imported: settings.incomeImport || null });
+  const cur = s.bars.find((b) => b.current) || s.bars[s.bars.length - 1];
+  const shown = s.bars.find((b) => b.key === hover) || cur;
+  const anyBooked = s.bars.some((b) => b.booked > 0);
+  const bars = s.bars.map((b, i) => ({
+    key: b.key, short: b.short, narrow: b.narrow, value: b.paid, booked: b.booked, current: b.current,
+    year: unit === 'month' ? yearMark(s.bars, i) : '',
+    href: reportHref('/reports/income', { p: UNIT_P[unit], d: b.from }),
+    aria: `${b.label}: הכנסות ${fmtMoney(b.paid)}${b.booked > 0 ? `, כבר נקבע ${fmtMoney(b.booked)}` : ''}`,
   }));
+  const catOpts = [{ value: '', label: 'כל הקטגוריות' }, ...cats.map((c) => ({ value: c, label: c }))];
   return html`<${Card} class="mc">
     <div class="mc-head">
-      <span class="mc-title">הכנסות · ${shown.label}${shown.current ? ' עד היום' : ''}</span>
+      <span class="mc-title">ניתוח הכנסות${category ? ' · ' + category : ''}</span>
       <a class="mc-link" href="#/reports">לדוחות<${Icon} name="chevronEnd" size=${18} /></a>
     </div>
-    <div class="mc-vals">
-      <span class="mc-num">${fmtMoney(shown.paid)}</span>
-      ${shown.booked > 0 && html`<span class="mc-booked">+ ${fmtMoney(shown.booked)} כבר נקבע</span>`}
+    <div class="mc-totals">
+      <div class="mc-total">
+        <span class="mc-total-l">החודש</span>
+        <span class="mc-num">${fmtMoney(s.month.paid)}</span>
+        ${s.month.booked > 0 && html`<span class="mc-booked">כבר נקבע: ${fmtMoney(s.month.booked)}</span>`}
+      </div>
+      <div class="mc-total">
+        <span class="mc-total-l">מתחילת השנה</span>
+        <span class="mc-num">${fmtMoney(s.year.paid)}</span>
+      </div>
     </div>
-    <${BarChart} bars=${bars} height=${112} active=${hover} onActive=${setHover} ariaLabel="הכנסות לפי חודש, 12 החודשים האחרונים" />
+    <div class="mc-filters">
+      <${Segmented} options=${UNITS} value=${unit} onChange=${(v) => { setUnit(v); setHover(null); }} label="תצוגה" />
+      <${Select} options=${catOpts} value=${category} onChange=${setCat} aria-label="קטגוריה" />
+    </div>
+    <p class="mc-readout"><strong>${shown.label}</strong>: הכנסות ${fmtMoney(shown.paid)}${shown.booked > 0 ? `, כבר נקבע ${fmtMoney(shown.booked)}` : ''}</p>
+    <${BarChart} bars=${bars} height=${112} active=${hover} onActive=${setHover} labelWidth=${unit === 'day' ? 20 : unit === 'week' ? 40 : 23} narrowWidth=${16}
+      ariaLabel=${unit === 'month' ? 'הכנסות לפי חודש, מינואר' : unit === 'week' ? 'הכנסות לפי שבוע' : 'הכנסות לפי יום, החודש הזה'} />
     ${anyBooked && html`<div class="mc-legend" aria-hidden="true">
       <span><${Swatch} /> הכנסות</span><span><${Swatch} booked /> כבר נקבע (תורים שעוד לא שולמו)</span>
     </div>`}
+    ${s.importedGap && html`<p class="small mc-note">בחודשים שלפני האפליקציה יש רק סך הכול, בלי פירוט לפי קטגוריה.</p>`}
   </${Card}>`;
 }
 
@@ -74,14 +116,17 @@ function SplitRow({ href, title, sub, end, children }) {
 export default function Home() {
   const { today, min } = useNow();
   const { data } = useData(async (s) => {
-    const [settings, appts, clients] = await Promise.all([s.getSettings(), s.listAppointments(), s.listClients()]);
-    return { settings, appts, clients };
+    const [settings, appts, clients, services] = await Promise.all([s.getSettings(), s.listAppointments(), s.listClients(), s.listServices({ includeInactive: true })]);
+    return { settings, appts, clients, services };
   }, []);
 
   const brand = html`<div class="home-brand"><img class="home-logo" src="img/logo-round.png" alt="Sarah B Cosmetics" width="300" height="330" decoding="async" /></div>`;
   const hero = html`<${Hero} image="img/clinic-chair.jpg" title="היום" sub=${fmtDateLong(today)}
     actions=${data && data.settings.demo && html`<${Tag} tone="gold">נתוני דוגמה</${Tag}>`} />`;
   const newBtn = html`<${Button} href=${'/appt/new?date=' + today}>תור חדש</${Button}>`;
+
+  const callCount = data ? callsDue(data.appts, new Map(data.clients.map((c) => [c.id, c])), today, null, min).length : 0;
+  useCallsToast(callCount, today);
 
   if (!data) return html`<${Page} class="home">${brand}${hero}${newBtn}</${Page}>`;
 
@@ -123,7 +168,7 @@ export default function Home() {
   return html`<${Page} class="home">
     ${brand}
     ${hero}
-    <${MonthChart} appts=${appts} today=${today} />
+    <${IncomeChart} appts=${appts} today=${today} services=${data.services} settings=${settings} />
     ${newBtn}
 
     <${Tiles}>
@@ -142,12 +187,13 @@ export default function Home() {
       </${List}>
     </${Section}>`}
 
-    ${calls.length > 0 && html`<${Section} title="להתקשר לפני התור" id="calls">
+    ${calls.length > 0 && html`<${Section} title="להתקשר היום" id="calls">
+      <p class="sub card-note">תזכורת לתור, למי שלא קורא/ת הודעות. אחרי השיחה מסמנים "התקשרתי".</p>
       <${List}>
         ${calls.map((a) => {
           const c = clients.get(a.clientId);
           return html`<${SplitRow} key=${a.id} href=${'/appt/' + a.id} title=${nameOf(a.clientId)}
-            sub=${`${a.date === today ? 'היום' : 'מחר'} · ${fmtTime(a.startMin)} · ${treat(a)}`}>
+            sub=${`התור ${whenLabel(a.date, today)} · ${fmtTime(a.startMin)} · ${treat(a)}`}>
             <${IconButton} icon="phone" label="חיוג" href=${'tel:' + (c ? c.phone : '')} />
             <${IconButton} icon="check" label="התקשרתי" onClick=${() => markCalled(a)} />
           </${SplitRow}>`;

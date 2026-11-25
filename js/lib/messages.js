@@ -1,7 +1,7 @@
 
 import { addDays, diffDays, dow, DAY_NAMES, fmtTime, parts } from './time.js';
 import { isYomTov } from './booking.js';
-import { apptEnd, apptTravel, canSendService, returnWeeksOf } from './model.js';
+import { apptEnd, apptTravel, callReminderOn, canSendService, returnWeeksOf } from './model.js';
 
 export const WAZE = 'https://waze.com/ul/hsv8uy09dk';
 export const REVIEW_LINK = 'https://g.page/r/CSQyxj1iUAcsEBM/review';
@@ -20,8 +20,9 @@ export const TIMING = {
   birthdayAtMin: 9 * 60,        // 21: בבוקר של יום ההולדת
   freedSlotMinDaysLater: 7,     // 13: למי שהתור הבא שלו/ה לפחות שבוע אחרי השעה שהתפנתה
   freedSlotMinNoticeMin: 120,   // 13: לא מציעים שעה שמתחילה בעוד פחות משעתיים
-  quiet: { guardMin: 60, endAtMin: 20 * 60, eveLastMin: 12 * 60 },
+  quiet: { guardMin: 60, eveLastMin: 12 * 60 },
   candleMin: [965, 990, 1010, 1095, 1115, 1135, 1135, 1100, 1060, 965, 955, 955],
+  exitMin:   [1080, 1100, 1185, 1205, 1225, 1235, 1235, 1220, 1190, 1150, 1055, 1055],
 };
 
 export const AFTER_CARE = { 'after-plasma': ['svc-07'], 'after-fungus': ['svc-01', 'svc-02'] };
@@ -86,7 +87,7 @@ export const MESSAGES = [
   {
     id: 'reminder-24', n: '5ב', group: 'before', kind: 'service', link: 'myappt', vars: APPT_VARS,
     title: 'תזכורת יום לפני',
-    when: '24 שעות לפני התור. אם זה נופל בשבת או בחג, יוצאת במוצאי השבת או החג, ב-20:00.',
+    when: '24 שעות לפני התור. אם זה נופל בשבת או בחג, יוצאת במוצאי השבת או החג, אחרי צאת השבת.',
     text: 'היי {שם},\nנתראה ביום {יום}, {תאריך}, בשעה {שעה}, ל{טיפול}.\nאם עוד לא אישרת הגעה, או שמשהו השתנה, הכל כאן:\n{קישור}\nמחכה לך 🤍 שרה',
   },
   {
@@ -272,10 +273,11 @@ export const earlier = (a, b) => a.date < b.date || (a.date === b.date && a.min 
 const isRestDay = (ymd) => dow(ymd) === 6 || isYomTov(ymd);
 export const isEve = (ymd) => !isRestDay(ymd) && isRestDay(addDays(ymd, 1));
 export const shabbatEntryMin = (ymd) => TIMING.candleMin[parts(ymd).m - 1];
+export const shabbatExitMin = (ymd) => TIMING.exitMin[parts(ymd).m - 1];
 
 export function isQuiet({ date, min }) {
   const Q = TIMING.quiet;
-  if (isRestDay(date)) return min < Q.endAtMin || isRestDay(addDays(date, 1));
+  if (isRestDay(date)) return min < shabbatExitMin(date) || isRestDay(addDays(date, 1));
   return isEve(date) && min >= shabbatEntryMin(date) - Q.guardMin;
 }
 
@@ -286,7 +288,7 @@ export function outOfQuiet(at, dir) {
   if (dir === 'after') {
     if (!isRestDay(d)) d = addDays(d, 1);
     while (isRestDay(addDays(d, 1))) d = addDays(d, 1);
-    return { date: d, min: Q.endAtMin, shifted: true };
+    return { date: d, min: shabbatExitMin(d), shifted: true };
   }
   while (isRestDay(d)) d = addDays(d, -1);
   return { date: d, min: Math.min(at.min, Q.eveLastMin), shifted: true };
@@ -298,8 +300,8 @@ function beforeAppt(at, start, dir) {
   return out;
 }
 
-export function reminderTimes(appt, now = null) {
-  if (!appt || appt.status === 'cancelled') return [];
+export function reminderTimes(appt, now = null, client = null) {
+  if (!appt || appt.status === 'cancelled' || callReminderOn(appt, client)) return [];
   const start = { date: appt.date, min: appt.startMin };
   const [h1, h2] = TIMING.reminderHours;
   const list = [

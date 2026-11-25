@@ -48,7 +48,7 @@ export default function ClientCard({ params }) {
         <${IconButton} icon="phone" label="חיוג" href=${'tel:' + client.phone} />
         <${IconButton} icon="whatsapp" label="וואטסאפ" href=${'https://wa.me/' + digits} target="_blank" rel="noopener" />
       </div>
-      ${client.callBefore && html`<${Notice} kind="warn" icon="phone">להתקשר לפני התור · לא קורא/ת הודעות</${Notice}>`}
+      ${client.callBefore && html`<${Notice} kind="warn" icon="phone">לא קורא/ת הודעות · להתקשר לפני כל תור</${Notice}>`}
       ${client.marketingOptOut && html`<div class="cl-line cl-optout">בלי הודעות פרסום${client.optOutAt ? ' · מאז ' + fmtDate(todayYmd(new Date(client.optOutAt))) : ''}</div>`}
       ${next && html`<${Notice} class="is-usertext" icon="edit">
         <div>בפעם הבאה: ${next.text}</div>

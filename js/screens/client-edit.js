@@ -90,7 +90,7 @@ function ClientForm({ client }) {
       <${DateInput} value=${birth} onChange=${setBirth} />
     </${Field}>
     <${Card}>
-      <${Toggle} label="להתקשר לפני התור" hint="למי שלא קורא/ת הודעות. יום לפני התור תופיע תזכורת במסך הבית."
+      <${Toggle} label="לא קורא/ת הודעות, להתקשר" hint="במקום התזכורות בוואטסאפ: יומיים לפני כל תור תופיע לך תזכורת להתקשר במסך הבית. אפשר לשנות בכל תור."
         checked=${callBefore} onChange=${setCallBefore} />
       <${Toggle} label="בלי הודעות פרסום" hint="למי שביקש/ה הסרה. תורים, תזכורות ואישורים ממשיכים להגיע."
         checked=${optOut} onChange=${setOptOut} />
