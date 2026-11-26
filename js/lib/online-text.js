@@ -1,6 +1,8 @@
 
 import { diffDays, dow, DAY_NAMES, fmtDayMonth, fmtTime } from './time.js';
 
+export const REVIEW_LINE = 'נקבע על הטלפון של כרטיס קיים. ההודעות ללקוח/ה יוצאות רק אחרי שתאשרי';
+
 export const treat = (a) => (a.items || []).map((it) => it.shortName || it.name).join(' + ');
 
 export function whenLabel(date, today) {

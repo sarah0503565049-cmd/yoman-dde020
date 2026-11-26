@@ -14,6 +14,7 @@ import {
 import { expandBlocks } from '../lib/recur.js';
 import { fmtDateLong, fmtTime, fmtDuration, todayYmd } from '../lib/time.js';
 import { methodsOn, unpayWarning } from '../lib/invoices.js';
+import { REVIEW_LINE } from '../lib/online-text.js';
 
 const FALLBACK = '/cal';
 const CHIP_STATUSES = ['booked', 'confirmed', 'arrived', 'noshow'];
@@ -246,6 +247,10 @@ export default function ApptCard({ params }) {
   };
   const setStatus = (st) => act(() => getStore().setAppointmentStatus(appt.id, st));
   const approve = () => act(() => getStore().setAppointmentStatus(appt.id, 'booked'), 'התור אושר');
+  const review = () => {
+    const at = new Date().toISOString();
+    return act(() => getStore().patchAppointment(appt.id, { needsReview: false, reviewedAt: at, seenAt: appt.seenAt || at }), 'התור אושר, וההודעות ללקוח/ה ייצאו כרגיל');
+  };
   const called = () => act(() => getStore().patchAppointment(appt.id, { calledAt: new Date().toISOString() }));
   const setCall = (patch) => act(() => getStore().patchAppointment(appt.id, patch), 'נשמר');
 
@@ -348,6 +353,8 @@ export default function ApptCard({ params }) {
     </${Card}>`}
 
     ${st === 'pending' && html`<${Button} onClick=${approve}>אישור התור</${Button}>`}
+    ${appt.needsReview === true && st !== 'cancelled' && html`<${Notice} kind="warn" icon="check">${REVIEW_LINE}</${Notice}>
+      <${Button} onClick=${review}>אישור התור</${Button}>`}
 
     ${open && html`<div class="ac-actions">
       <${Chips}>${CHIP_STATUSES.map((k) => html`<${Chip} key=${k} active=${st === k} onClick=${() => st !== k && setStatus(k)}>${STATUS[k].label}</${Chip}>`)}</${Chips}>

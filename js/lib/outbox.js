@@ -140,8 +140,12 @@ export function computeOutbox(state, now, opt = {}) {
     const client = clients.get(a.clientId);
     const start = { date: a.date, min: a.startMin };
     const startAbs = abs(start);
+    const held = a.needsReview === true;
+    if (held && (a.status === 'booked' || a.status === 'confirmed' || a.status === 'cancelled')) {
+      out.dropped.push({ key: `${a.id}|held`, msgId: null, reason: 'needs-review' });
+    }
 
-    if (a.status === 'booked' || a.status === 'confirmed') {
+    if (!held && (a.status === 'booked' || a.status === 'confirmed')) {
       let eventAbs = Math.max(abs(wallOf(a.createdAt) || { date: EPOCH, min: 0 }), a.approvedAt ? abs(wallOf(a.approvedAt) || { date: EPOCH, min: 0 }) : 0);
       for (const id of INFORMED) {
         const m = markOn(a, id, true);
@@ -176,13 +180,13 @@ export function computeOutbox(state, now, opt = {}) {
       } else if (t24 && covered(t24)) out.dropped.push({ key: `${a.id}|reminder-24`, msgId: 'reminder-24', reason: 'covered' });
     }
 
-    if (a.status === 'cancelled' && a.cancelledAt && startAbs > nowAbs) {
+    if (!held && a.status === 'cancelled' && a.cancelledAt && startAbs > nowAbs) {
       const msgId = a.cancelledBy === 'owner' ? 'cancel-owner' : 'cancel-client';
       const cw = wallOf(a.cancelledAt);
       const m = a.msgs && a.msgs[msgId];
       const doneNow = m && Date.parse(m.at) >= Date.parse(a.cancelledAt);
       if (!doneNow && cw) {
-        if (informed(a) || a.source === 'online') {
+        if (informed(a) || (a.source === 'online' && !a.rejectedAt)) {
           push(apptCand(a, msgId, { dueAt: cw, expireAt: fromAbs(Math.min(startAbs, abs(cw) + WINDOWS.cancelMaxMin)), eventAt: true }));
         } else out.dropped.push({ key: `${a.id}|${msgId}`, msgId, reason: 'client-never-informed' });
       }

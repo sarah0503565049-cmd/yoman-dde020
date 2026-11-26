@@ -368,6 +368,7 @@ export function createStore({ storage, today, history = false } = {}) {
       if (from === 'pending' && (status === 'booked' || status === 'confirmed') && !a.approvedAt) a.approvedAt = nowIso();
       if (from === 'pending' && status !== 'pending' && a.source === 'online' && !a.seenAt) a.seenAt = nowIso();
       if (status === 'cancelled') {
+        if (from === 'pending' && !a.approvedAt && !a.rejectedAt) a.rejectedAt = nowIso();
         a.cancelledBy = cancelledBy || 'owner';
         a.cancelledAt = nowIso();
         a.cancelReason = String(reason || '').trim();

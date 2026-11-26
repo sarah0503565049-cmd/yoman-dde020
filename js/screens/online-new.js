@@ -6,7 +6,7 @@ import { getStore } from '../data/store.js';
 import { go } from '../router.js';
 import { fmtTime, todayYmd } from '../lib/time.js';
 import { unseenOnline, freshOnline, linkNotices, freshLinkNotices } from '../lib/booking.js';
-import { treat, whenLabel, toastText, linkToastText, linkRowText } from '../lib/online-text.js';
+import { treat, whenLabel, toastText, linkToastText, linkRowText, REVIEW_LINE } from '../lib/online-text.js';
 
 export { toastText, linkToastText, linkRowText };
 
@@ -50,7 +50,10 @@ function startWatch() {
 
 const seen = async (a) => {
   try {
-    await getStore().patchAppointment(a.id, { seenAt: new Date().toISOString() });
+    const patch = { seenAt: new Date().toISOString() };
+    if (a.needsReview === true) Object.assign(patch, { needsReview: false, reviewedAt: patch.seenAt });
+    await getStore().patchAppointment(a.id, patch);
+    if (a.needsReview === true) toast('התור אושר, וההודעות ללקוח/ה ייצאו כרגיל');
   } catch (err) { toast(err.message); }
 };
 
@@ -70,9 +73,10 @@ export function OnlineNew({ appts, clients, today }) {
             <span class="row-main">
               <span class="home-title-line"><span class="row-title">${nameOf(a.clientId)}</span></span>
               <span class="row-sub">${treat(a)} · ${whenLabel(a.date, today)} · ${fmtTime(a.startMin)}</span>
+              ${a.needsReview === true && html`<span class="row-sub">${REVIEW_LINE}</span>`}
             </span>
           </a>
-          <span class="row-end"><${IconButton} icon="check" label="ראיתי" onClick=${() => seen(a)} /></span>
+          <span class="row-end"><${IconButton} icon="check" label=${a.needsReview === true ? 'אישור' : 'ראיתי'} onClick=${() => seen(a)} /></span>
         </div>`)}
       </${List}>
     </${Section}>`}
