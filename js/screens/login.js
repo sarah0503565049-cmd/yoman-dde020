@@ -1,8 +1,12 @@
 
-import { html, useState } from '../../vendor/preact-htm.js';
+import { html, useState, useEffect, useRef } from '../../vendor/preact-htm.js';
 import { Page, Field, TextInput, Button, Notice } from '../ui/bits.js';
 
 const MIN_LEN = 8;
+const CODE_LEN = 6;
+
+const SENT = () => html`הקישור נשלח למייל. המייל באנגלית, מאת <bdi>Supabase Auth</bdi>, בנושא <bdi>Reset Your Password</bdi>.
+  כדאי לבדוק גם בספאם. הקישור תקף לשעה, ויכול לקחת דקה עד שיגיע.`;
 
 const TEXT = {
   wrong: 'המייל או הסיסמה לא נכונים.',
@@ -10,8 +14,18 @@ const TEXT = {
   badMail: 'כתובת המייל לא תקינה.',
   forgot: 'שכחתי סיסמה',
   forgotNoMail: 'קודם כותבים למעלה את כתובת המייל.',
-  forgotSent: 'הקישור נשלח למייל. הוא תקף לשעה, ויכול לקחת דקה עד שיגיע.',
+  forgotSent: SENT,
   forgotWait: 'נשלחו כמה בקשות ברצף. כדאי לבדוק במייל, גם בספאם, ואם אין, לנסות שוב בעוד שעה.',
+  codeTitle: 'קוד מהטלפון',
+  codeLead: 'פותחים את אפליקציית האימות בטלפון ומקלידים את הקוד של היומן.',
+  codeLeadReset: 'לפני הסיסמה החדשה, מקלידים את הקוד מאפליקציית האימות בטלפון.',
+  codeLabel: 'קוד',
+  codeGo: 'כניסה',
+  codeGoReset: 'המשך',
+  codeWrong: 'הקוד לא נכון, או שכבר התחלף. מקלידים את הקוד שמופיע עכשיו.',
+  codeExpired: 'עבר יותר מדי זמן. מקלידים את הקוד שמופיע עכשיו.',
+  codeWait: 'נעשו כמה ניסיונות ברצף. אפשר לנסות שוב בעוד דקה.',
+  codeFailed: 'הבדיקה לא הצליחה. אפשר לנסות שוב.',
   newTitle: 'סיסמה חדשה',
   newFirst: 'סיסמה חדשה',
   newAgain: 'הקלדת הסיסמה שוב',
@@ -74,7 +88,7 @@ export default function Login({ onLogin, onForgot }) {
     let result;
     try { result = await onForgot(mail); } catch { result = 'offline'; }
     setBusy(false);
-    if (result === 'sent') setNote({ kind: 'info', text: TEXT.forgotSent });
+    if (result === 'sent') setNote({ kind: 'info', text: TEXT.forgotSent() });
     else if (result === 'wait') setNote({ kind: 'warn', text: TEXT.forgotWait });
     else setError(TEXT.offline);
   };
@@ -99,11 +113,82 @@ export default function Login({ onLogin, onForgot }) {
   </${Frame}>`;
 }
 
-export function NewPass({ onSave, onBack }) {
+export const codeDigits = (v) => String(v || '').replace(/\D/g, '').slice(0, CODE_LEN);
+
+export function CodeInput({ value, onChange, onFull, autoFocus }) {
+  useEffect(() => {
+    if (!autoFocus) return;
+    const el = document.querySelector('.input-code');
+    if (el) el.focus();
+  }, []);
+  return html`<${TextInput} class="input-code" type="text" dir="ltr" inputmode="numeric" pattern="[0-9]*" maxlength=${CODE_LEN}
+    autocomplete="one-time-code" autocapitalize="off" spellcheck="false"
+    value=${value} onChange=${(v, e) => {
+      const d = codeDigits(v);
+      if (e && e.currentTarget && e.currentTarget.value !== d) e.currentTarget.value = d;
+      onChange(d);
+      if (d.length === CODE_LEN && onFull) onFull(d);
+    }} />`;
+}
+
+const CODE_ERRORS = { wrong: TEXT.codeWrong, expired: TEXT.codeExpired, wait: TEXT.codeWait, offline: TEXT.offline, failed: TEXT.codeFailed };
+export const codeError = (r) => CODE_ERRORS[r] || TEXT.codeFailed;
+
+export function Code({ onVerify, onBack, reset = false }) {
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const running = useRef(false);   // שש הספרות שולחות לבד, וגם הכפתור: בדיקה אחת בכל פעם
+
+  const check = async (value) => {
+    if (running.current) return;
+    const c = codeDigits(value);
+    if (c.length !== CODE_LEN) {
+      const field = document.getElementById('mfa-code');
+      if (field) field.focus();
+      if (c.length) setError(TEXT.codeWrong);
+      return;
+    }
+    running.current = true;
+    setBusy(true);
+    setError('');
+    let result;
+    try { result = await onVerify(c); } catch { result = 'offline'; }
+    if (result === 'ok') return;
+    running.current = false;
+    setBusy(false);
+    setCode('');
+    setError(codeError(result));
+  };
+  const submit = (e) => { e.preventDefault(); check(code); };
+  const edit = (v) => { setCode(v); if (error) setError(''); };
+
+  return html`<${Frame}>
+    <h1 class="login-title">${TEXT.codeTitle}</h1>
+    <form class="login-form" novalidate onSubmit=${submit}>
+      <p class="login-lead">${reset ? TEXT.codeLeadReset : TEXT.codeLead}</p>
+      <${Field} label=${TEXT.codeLabel} id="mfa-code">
+        <${CodeInput} value=${code} onChange=${edit} onFull=${check} autoFocus />
+      </${Field}>
+      ${error && html`<${Notice} kind="danger">${error}</${Notice}>`}
+      <${Button} type="submit" disabled=${busy}>${busy ? TEXT.wait : (reset ? TEXT.codeGoReset : TEXT.codeGo)}</${Button}>
+      <${Button} kind="soft" disabled=${busy} onClick=${onBack}>${TEXT.toLogin}</${Button}>
+    </form>
+  </${Frame}>`;
+}
+
+export function Expired({ onBack }) {
+  return html`<${Frame}>
+    <${Notice} kind="warn">${TEXT.expired}</${Notice}>
+    <${Button} onClick=${onBack}>${TEXT.toLogin}</${Button}>
+  </${Frame}>`;
+}
+
+export function NewPass({ onSave, onBack, error: firstError }) {
   const [first, setFirst] = useState('');
   const [again, setAgain] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(firstError === 'weak' ? TEXT.short : firstError === 'offline' ? TEXT.offline : '');
   const [expired, setExpired] = useState(false);
 
   const submit = async (e) => {
@@ -128,12 +213,7 @@ export function NewPass({ onSave, onBack }) {
 
   const edit = (set) => (v) => { set(v); if (error) setError(''); };
 
-  if (expired) {
-    return html`<${Frame}>
-      <${Notice} kind="warn">${TEXT.expired}</${Notice}>
-      <${Button} onClick=${onBack}>${TEXT.toLogin}</${Button}>
-    </${Frame}>`;
-  }
+  if (expired) return html`<${Expired} onBack=${onBack} />`;
   return html`<${Frame}>
     <h1 class="login-title">${TEXT.newTitle}</h1>
     <form class="login-form" novalidate onSubmit=${submit}>

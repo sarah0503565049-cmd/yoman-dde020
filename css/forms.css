@@ -15,3 +15,16 @@
 .small-hint { font-size: var(--fs-small); line-height: 1.4; color: var(--ink); }
 
 .pick-group { display: flex; flex-direction: column; gap: var(--g1); }
+
+.login-lead { color: var(--ink); }
+
+.input-code { text-align: center; letter-spacing: .35em; font-variant-numeric: tabular-nums; font-weight: 700; }
+
+.mfa-form { display: flex; flex-direction: column; gap: var(--g3); }
+.mfa-qr-box { display: flex; justify-content: center; }
+.mfa-qr { display: block; width: 200px; height: 200px; padding: var(--g2); background: var(--card); border: 1px solid var(--line); border-radius: var(--r-box); box-sizing: content-box; }
+
+.mfa-secret { display: grid; grid-template-columns: repeat(4, auto); justify-content: space-between; row-gap: var(--g1);
+  font-weight: 700; color: var(--espresso); font-variant-numeric: tabular-nums; letter-spacing: .08em; user-select: all; -webkit-user-select: all; }
+.mfa-name { white-space: nowrap; }
+.mfa-on { margin: 0; }

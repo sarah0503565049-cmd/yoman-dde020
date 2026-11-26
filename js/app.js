@@ -1,4 +1,5 @@
 
+import './first-hash.js'; // חייב להיות הייבוא הראשון: שומר את הכתובת לפני ש-router.js מחליף אותה
 import { html, render, useState, useEffect } from '../vendor/preact-htm.js';
 import { useRoute, replace, fillPath } from './router.js';
 import { TABS, loadScreen } from './routes.js';

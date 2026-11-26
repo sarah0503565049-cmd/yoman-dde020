@@ -33,6 +33,7 @@ const BAK_KEY = 'torim.v1.bak';
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const nowIso = () => new Date().toISOString();
 const newId = () => globalThis.crypto.randomUUID();
+const newToken = () => globalThis.crypto.randomUUID().replace(/-/g, '');
 
 function normalizeBlock(b) {
   const out = {
@@ -219,6 +220,15 @@ export function createStore({ storage, today, history = false } = {}) {
       return clone(out);
     },
 
+    async patchClient(id, patch) {
+      const db = read();
+      const idx = db.clients.findIndex((x) => x.id === id);
+      if (idx < 0) throw new Error('הלקוח/ה לא נמצא/ת');
+      db.clients[idx] = { ...db.clients[idx], ...clone(patch || {}), id };
+      write(db);
+      return clone(db.clients[idx]);
+    },
+
     async listAppointments({ from, to, clientId, includeCancelled = false } = {}) {
       return clone(read().appointments
         .filter((a) => (includeCancelled || a.status !== 'cancelled')
@@ -247,7 +257,10 @@ export function createStore({ storage, today, history = false } = {}) {
       if (prev) {
         if (out.status === 'free' && prev.status !== 'free') assertNeverPaid(prev);
         out.everPaid = !!(prev.everPaid || out.everPaid); // לא מנקים אף פעם
+        if (prev.token) out.token = prev.token; // הקישור שכבר נשלח ללקוח/ה ממשיך לעבוד
+        if (prev.status === 'pending' && (out.status === 'booked' || out.status === 'confirmed') && !out.approvedAt) out.approvedAt = nowIso();
       }
+      if (!out.token) out.token = newToken();
       if (prev) db.appointments[idx] = out; else db.appointments.push(out);
       write(db);
       return clone(out);
@@ -337,6 +350,8 @@ export function createStore({ storage, today, history = false } = {}) {
       if (status === 'free') throw new Error('סגירה ללא תשלום נעשית בנפרד, עם סיבה');
       const from = a.status;
       a.status = status;
+      if (from === 'pending' && (status === 'booked' || status === 'confirmed') && !a.approvedAt) a.approvedAt = nowIso();
+      if (from === 'pending' && status !== 'pending' && a.source === 'online' && !a.seenAt) a.seenAt = nowIso();
       if (status === 'cancelled') {
         a.cancelledBy = cancelledBy || 'owner';
         a.cancelledAt = nowIso();
@@ -473,6 +488,34 @@ export function createStore({ storage, today, history = false } = {}) {
       db.blocks.push(one);
       write(db);
       return clone(one);
+    },
+
+    async importBatch(batch = {}) {
+      const db = read();
+      const done = Array.isArray(db.settings.importedLaunches) ? db.settings.importedLaunches : [];
+      if (batch.launchId && done.includes(batch.launchId)) throw new Error('הקובץ הזה כבר יובא');
+      const lists = { services: batch.services || [], clients: batch.clients || [], appointments: batch.appointments || [], blocks: batch.blocks || [] };
+      const phones = new Set(db.clients.filter((c) => !c.deletedAt).map((c) => c.phone));
+      for (const [key, rows] of Object.entries(lists)) {
+        const ids = new Set(db[key].map((x) => x.id));
+        for (const r of rows) {
+          if (!r || !r.id || ids.has(r.id)) throw new Error('בקובץ יש מזהה שכבר קיים באפליקציה');
+          ids.add(r.id);
+          if (key === 'clients' && !r.deletedAt) {
+            if (!r.phone || phones.has(r.phone)) throw new Error('בקובץ יש לקוח/ה עם טלפון שכבר קיים באפליקציה');
+            phones.add(r.phone);
+          }
+        }
+      }
+      const clientIds = new Set([...db.clients, ...lists.clients].map((c) => c.id));
+      if (lists.appointments.some((a) => !clientIds.has(a.clientId))) throw new Error('בקובץ יש תור בלי כרטיס לקוח/ה');
+      for (const key of Object.keys(lists)) db[key].push(...clone(lists[key]));
+      for (const a of db.appointments) if (!a.token) a.token = newToken(); // גם לתור מיובא יש קישור אישי
+      const { epoch, demo, importedLaunches, ...patch } = batch.settings || {};
+      db.settings = { ...db.settings, ...clone(patch) };
+      if (batch.launchId) db.settings.importedLaunches = [...done, batch.launchId];
+      write(db);
+      return { services: lists.services.length, clients: lists.clients.length, appointments: lists.appointments.length, blocks: lists.blocks.length };
     },
 
     async firstVisitIds() { return modelFirstVisitIds(read().appointments); },

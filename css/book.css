@@ -266,6 +266,8 @@ html.bk-noscroll, html.bk-noscroll body { overflow: hidden; }
 .bk-done { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; padding-top: var(--g2); }
 .bk-done p { text-align: center; color: var(--espresso); font-weight: 600; }
 
+.bk-my-actions { display: flex; flex-direction: column; gap: var(--g2); }
+
 .bk-end { display: flex; justify-content: center; padding-top: var(--g2); }
 .bk-end img { width: auto; height: 120px; }
 

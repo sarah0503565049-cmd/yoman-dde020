@@ -26,7 +26,9 @@ export const ROUTES = [
   { path: '/reports/print', file: 'report-print', title: 'תצוגה', em: 'להדפסה', backTo: '/reports' },
 
   { path: '/messages', file: 'messages', title: 'הודעות', em: 'אוטומטיות', backTo: '/more' },
+  { path: '/outbox', file: 'outbox', title: 'הודעות', em: 'לשליחה', backTo: '/home' },
   { path: '/message/:id', file: 'message-edit', title: 'הודעה', backTo: '/messages' },
+  { path: '/import', file: 'import', title: 'ייבוא', em: 'נתונים', backTo: '/more' },
 
   { path: '/more', file: 'more', tab: 'more', title: 'עוד' },
   { path: '/_ui', file: 'ui-kit', title: 'ערכת', em: 'העיצוב', backTo: '/more' },

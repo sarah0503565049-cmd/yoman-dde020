@@ -10,6 +10,8 @@ import { incomeRows, incomeSeries } from '../lib/reports.js';
 import { Icon } from '../ui/icons.js';
 import { useData, useNow, useSessionState } from '../ui/hooks.js';
 import { getStore } from '../data/store.js';
+import { OutboxLine } from './outbox.js';
+import { OnlineNew } from './online-new.js';
 import { addDays, diffDays, dow, DAY_NAMES, fmtDate, fmtDateLong, fmtDayMonth, fmtTime } from '../lib/time.js';
 import {
   apptEnd, apptTotal, apptVisual, callsDue, firstVisitIds, isActive, needsNextAppointment,
@@ -170,6 +172,7 @@ export default function Home() {
     ${hero}
     <${IncomeChart} appts=${appts} today=${today} services=${data.services} settings=${settings} />
     ${newBtn}
+    <${OutboxLine} />
 
     <${Tiles}>
       <${Tile} label="תורים היום" value=${todays.length} />
@@ -177,6 +180,7 @@ export default function Home() {
       <${Tile} label="ממתינים לאישור" value=${pending.length} onClick=${pending.length ? () => scrollToId('pending') : undefined} />
       <${Tile} label="לא שולמו" value=${unpaid.length} onClick=${unpaid.length ? () => scrollToId('unpaid') : undefined} />
     </${Tiles}>
+    <${OnlineNew} appts=${appts} clients=${clients} today=${today} />
 
     ${unpaid.length > 0 && html`<${Section} title="לא שולמו" id="unpaid">
       <${Notice} kind="warn" icon="coin">${unpaid.length === 1 ? 'תור אחד שעבר ועוד לא שולם' : `${unpaid.length} תורים שעברו ועוד לא שולמו`}</${Notice}>

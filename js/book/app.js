@@ -8,8 +8,49 @@ import { DAY_NAMES, dow, parts, fmtTime, fmtDuration, fmtDateLong, isYmd, todayY
 import { BirthInput } from '../ui/birth-input.js';
 import { BOOK } from './config.js';
 import { HERO, LOGO, BUTTONS, TREATMENTS } from './content.js';
+import { CLIENT_OPTIONS, createBookRemote, createRemoteSource, createMyRemote } from './remote.js';
+import { CLINIC_WAY, WAZE } from '../lib/messages.js';
 
-const store = getStore();
+let demoStore = null;
+const store = () => demoStore || (demoStore = getStore());
+let live = null;
+let my = null;
+let CFG = BOOK;
+const NAME_MAX = 60;   // השרת מקבל שם עד 60 תווים (db/booking.sql)
+
+const TEXT = {
+  offTitle: 'אין חיבור כרגע',
+  offText: 'אפשר לנסות שוב בעוד רגע, או לקבוע בוואטסאפ.',
+  retry: 'לנסות שוב',
+  limit: 'את התור הזה נשמח לקבוע איתך בוואטסאפ.',
+};
+const MY = {
+  title: 'התור', titleEm: 'שלך',
+  askConfirm: 'אשמח שתאשר/י הגעה',
+  confirmed: 'אישרת הגעה, תודה 🤍',
+  moved: 'התור עודכן 🤍',
+  cancelled: 'התור בוטל',
+  pending: 'התור מחכה לאישור שלי',
+  over: 'התור הזה כבר עבר',
+  confirm: 'אישור הגעה',
+  change: 'שינוי יום או שעה',
+  cancel: 'ביטול התור',
+  until: (when, time) => `אפשר לשנות או לבטל כאן עד ${when}, בשעה ${time}.`,
+  late: (hours) => `כאן אפשר לשנות או לבטל עד ${hours} שעות לפני התור. מכאן והלאה, אשמח שתכתוב/י לי בוואטסאפ.`,
+  waChange: 'לשינוי יום או שעה, אשמח שתכתוב/י לי בוואטסאפ.',
+  wa: 'לכתוב לי בוואטסאפ',
+  waze: 'ניווט בוויז',
+  cancelAsk: 'לבטל את התור?',
+  cancelYes: 'כן, לבטל את התור',
+  cancelNo: 'לא, להשאיר את התור',
+  moveTitle: 'שינוי', moveEm: 'יום או שעה',
+  save: 'שמירת השינוי',
+  notFound: 'לא מצאתי את התור הזה',
+  notFoundText: 'אפשר לכתוב לי בוואטסאפ, ואבדוק.',
+  offText: 'אפשר לנסות שוב בעוד רגע, או לכתוב לי בוואטסאפ.',
+  failed: 'השינוי לא נשמר',
+};
+const PLACE = CLINIC_WAY.split('\n')[0].replace(/:\s*$/, '.');
 const cx = (...a) => a.filter(Boolean).join(' ');
 const money = (v) => `${(Number(v) || 0).toLocaleString('he-IL')} ₪`;
 const dayChip = (ymd) => { const { d, m } = parts(ymd); return `${DAY_NAMES[dow(ymd)]} ${d}/${m}`; };
@@ -119,6 +160,21 @@ const ME_KEY = 'book.me';
 const readMe = () => { try { return JSON.parse(sessionStorage.getItem(ME_KEY)) || {}; } catch { return {}; } };
 const writeMe = (v) => { try { sessionStorage.setItem(ME_KEY, JSON.stringify(v)); } catch { /* בלי אחסון: ממלאים שוב */ } };
 
+const DONE_KEY = 'book.done';
+const writeDone = (a) => { try { sessionStorage.setItem(DONE_KEY, JSON.stringify(a)); } catch { /* בלי אחסון: המסך יגיד שהתור לא נמצא */ } };
+const readDone = (token) => { try { const a = JSON.parse(sessionStorage.getItem(DONE_KEY)); return a && a.token === token ? a : null; } catch { return null; } };
+const KEY_KEY = 'book.key';
+function attemptKey(req) {
+  const sig = [req.serviceId, req.date, req.startMin, normalizePhone(req.phone)].join('|');
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(KEY_KEY));
+    if (saved && saved.sig === sig) return saved.key;
+    const key = globalThis.crypto && crypto.randomUUID ? crypto.randomUUID() : undefined;
+    sessionStorage.setItem(KEY_KEY, JSON.stringify({ sig, key }));
+    return key;
+  } catch { return undefined; }
+}
+
 function Shell({ head = true, backTo = '/', top = false, foot, children }) {
   useLayoutEffect(unRiver);
   return html`<div class="bk">
@@ -132,17 +188,23 @@ function Shell({ head = true, backTo = '/', top = false, foot, children }) {
 }
 
 function Meta({ svc }) {
-  const len = slotLength(svc, BOOK);
+  const len = slotLength(svc, CFG);
   return html`<p class="bk-meta">
-    ${BOOK.showPrices && html`<span class="money">${money(svc.price)}</span>`}
-    ${BOOK.showPrices && len > 0 && html`<span aria-hidden="true">·</span>`}
+    ${CFG.showPrices && html`<span class="money">${money(svc.price)}</span>`}
+    ${CFG.showPrices && len > 0 && html`<span aria-hidden="true">·</span>`}
     ${len > 0 && html`<span>${fmtDuration(len)}</span>`}
   </p>`;
 }
 
-function WhatsAppBook() {
-  return html`<a class="btn btn-primary" href=${BOOK.whatsapp.href} target="_blank" rel="noopener">
+function WhatsAppBook({ soft = false } = {}) {
+  return html`<a class=${soft ? 'btn btn-soft' : 'btn btn-primary'} href=${CFG.whatsapp.href} target="_blank" rel="noopener">
     <${Icon} name="whatsapp" size=${22} /><span>${BUTTONS.book} בוואטסאפ</span></a>`;
+}
+
+function Offline({ onRetry }) {
+  return html`<${Notice} title=${TEXT.offTitle}>${TEXT.offText}</${Notice}>
+    <button type="button" class="btn btn-primary bk-retry" onClick=${onRetry}><span>${TEXT.retry}</span></button>
+    <${WhatsAppBook} soft />`;
 }
 
 function AskButton() {
@@ -154,8 +216,8 @@ function Loading() {
   return html`<div class="bk-loading" role="status" aria-label="טוען"><span class="loader-dots"><span /><span /><span /></span></div>`;
 }
 
-function Notice({ kind = 'info', title, children }) {
-  return html`<div class=${'notice is-' + kind} role=${kind === 'danger' ? 'alert' : undefined}>
+function Notice({ kind = 'info', title, children, id }) {
+  return html`<div id=${id} class=${'notice is-' + kind} role=${kind === 'danger' ? 'alert' : undefined}>
     <div class="notice-body">
       ${title && html`<p class="notice-title">${title}</p>`}
       ${children && html`<div class="notice-text">${children}</div>`}
@@ -170,9 +232,9 @@ const writeChosen = (id) => { try { sessionStorage.setItem(SVC_KEY, id); } catch
 function TreatmentTile({ svc, chosen }) {
   const c = TREATMENTS[svc.id] || {};
   const img = c.image;
-  const wa = publicMode(svc, BOOK) === 'whatsapp';
-  const len = slotLength(svc, BOOK);
-  const bookHref = wa ? BOOK.whatsapp.href : '#/when/' + svc.id;
+  const wa = publicMode(svc, CFG) === 'whatsapp';
+  const len = slotLength(svc, CFG);
+  const bookHref = wa ? CFG.whatsapp.href : '#/when/' + svc.id;
   const ext = (on) => (on ? { target: '_blank', rel: 'noopener' } : {});
   const pick = () => writeChosen(svc.id);
   return html`<article class=${cx('bk-tile', chosen && 'is-active')} id=${'t-' + svc.id}>
@@ -182,8 +244,8 @@ function TreatmentTile({ svc, chosen }) {
         : html`<span class="bk-circle is-logo" aria-hidden="true"><img src=${LOGO.black} alt="" loading="lazy" /></span>`}
       <h2 class="bk-tile-title">${tileName(svc.name)}</h2>
       <span class="bk-tile-meta">
-        ${BOOK.showPrices && html`<span class="money">${money(svc.price)}</span>`}
-        ${BOOK.showPrices && len > 0 && html`<span aria-hidden="true"> · </span>`}
+        ${CFG.showPrices && html`<span class="money">${money(svc.price)}</span>`}
+        ${CFG.showPrices && len > 0 && html`<span aria-hidden="true"> · </span>`}
         ${len > 0 && html`<span>${fmtDuration(len)}</span>`}
       </span>
     </a>
@@ -269,15 +331,21 @@ function PickButton({ id, icon, label, value, disabled, onClick }) {
 
 function TreatmentScreen({ svc, query }) {
   const c = TREATMENTS[svc.id] || {};
-  const wa = publicMode(svc, BOOK) === 'whatsapp';
+  const wa = publicMode(svc, CFG) === 'whatsapp';
   const [days, setDays] = useState(wa ? [] : null);
+  const [offline, setOffline] = useState(false);
   const [date, setDate] = useState(isYmd(query.d || '') ? query.d : null);
   const [min, setMin] = useState(query.m != null && query.m !== '' ? Number(query.m) : null);
   const [sheet, setSheet] = useState(null);
   const [all, setAll] = useState(false);
   const [more, setMore] = useState(query.more === '1');
-  useEffect(() => { if (!wa) store.bookingDays(svc.id, { config: BOOK }).then(setDays); }, [svc.id]);
-  useScrollRestore(!!days);
+  const loadDays = () => {
+    if (!live) { store().bookingDays(svc.id, { config: CFG }).then(setDays); return; }
+    setOffline(false);
+    live.days(svc.id).then((d) => { CFG = live.cfg; setDays(d); }, () => setOffline(true));
+  };
+  useEffect(() => { if (!wa) loadDays(); }, [svc.id]);
+  useScrollRestore(!!days || offline);
 
   const day = days && days.find((d) => d.date === date);
   const chosen = !!(day && min != null && day.starts.includes(min));
@@ -296,7 +364,8 @@ function TreatmentScreen({ svc, query }) {
   return html`<${Shell} backTo="/" foot=${foot}>
     <div class="bk-detail-head"><h1>${nameOf(svc.name)}</h1></div>
     <${Meta} svc=${svc} />
-    ${!days && html`<${Loading} />`}
+    ${!days && !offline && html`<${Loading} />`}
+    ${!days && offline && html`<${Offline} onRetry=${loadDays} />`}
     ${!wa && days && days.length === 0 && html`<${Notice} title="אין כרגע שעות פנויות לטיפול הזה" /><${WhatsAppBook} />`}
     ${!wa && days && days.length > 0 && html`<div class="bk-picks">
       <${PickButton} id="bk-pick-day" icon="calendar" label=${BUTTONS.pickDay} value=${day ? fmtDateLong(day.date) : null} onClick=${() => setSheet('day')} />
@@ -369,7 +438,7 @@ function MeScreen({ svc, date, min }) {
     <${Shell} backTo=${`/when/${svc.id}?d=${date}&m=${min}`} foot=${html`<button type="submit" class="btn btn-primary"><span>המשך</span></button>`}>
       <h1>הפרטים <em>שלך</em></h1>
       <${Picked} svc=${svc} date=${date} min=${min} />
-      ${field('bk-name', 'שם מלא', name, clear('name', setName), err.name, { type: 'text', autocomplete: 'name', enterkeyhint: 'next', 'aria-required': 'true' })}
+      ${field('bk-name', 'שם מלא', name, clear('name', setName), err.name, { type: 'text', autocomplete: 'name', enterkeyhint: 'next', 'aria-required': 'true', maxlength: live ? NAME_MAX : undefined })}
       ${field('bk-phone', 'טלפון', phone, clear('phone', setPhone), err.phone, { type: 'tel', dir: 'ltr', inputmode: 'tel', autocomplete: 'tel', enterkeyhint: 'done', 'aria-required': 'true' })}
       <div class=${cx('field', err.birth && 'has-error')}>
         <label class="field-label" id="bk-birth-l" for="bk-birth">תאריך לידה <span class="field-opt">(לא חובה)</span></label>
@@ -393,8 +462,16 @@ function SumScreen({ svc, date, min }) {
     if (busy) return;
     setBusy(true);
     setError(null);
+    if (live) {
+      const req = { serviceId: svc.id, date, startMin: min, name: me.name, phone: me.phone, birthDate: me.birthDate || null };
+      const r = await live.book({ ...req, key: attemptKey(req) });
+      if (r.ok) { writeDone(r.appointment); go(`done/${r.appointment.token}`, { replace: true }); return; }
+      setError(r.code === 'slot_taken' ? 'slot' : r.code === 'limit' ? 'limit' : 'other');
+      setBusy(false);
+      return;
+    }
     try {
-      const r = await store.bookOnline({ serviceId: svc.id, date, startMin: min, name: me.name, phone: me.phone, birthDate: me.birthDate || null }, { config: BOOK });
+      const r = await store().bookOnline({ serviceId: svc.id, date, startMin: min, name: me.name, phone: me.phone, birthDate: me.birthDate || null }, { config: CFG });
       go(`done/${r.appointment.id}`, { replace: true });
     } catch (e) {
       setError(e && e.code === 'slot_taken' ? 'slot' : 'other');
@@ -404,17 +481,19 @@ function SumScreen({ svc, date, min }) {
   const row = (k, v, ltr) => html`<div class="bk-sum-row"><span class="bk-sum-k">${k}</span><span class="bk-sum-v" dir=${ltr ? 'ltr' : undefined}>${v}</span></div>`;
   const foot = error === 'slot'
     ? html`<a class="btn btn-primary" href=${`#/when/${svc.id}?d=${date}`}><span>לבחירת שעה אחרת</span></a>`
+    : error === 'limit' ? html`<${WhatsAppBook} />`
     : html`<button type="button" class="btn btn-primary" disabled=${busy} onClick=${book}><span>לקביעת התור</span></button>`;
   return html`<${Shell} backTo=${`/me/${svc.id}/${date}/${min}`} foot=${foot}>
     <h1>סיכום <em>התור</em></h1>
     ${error === 'slot' && html`<${Notice} kind="warn" title="השעה הזאת כבר נתפסה">אפשר לבחור שעה אחרת.</${Notice}>`}
+    ${error === 'limit' && html`<${Notice} title=${TEXT.limit} />`}
     ${error === 'other' && html`<${Notice} kind="danger" title="התור לא נשמר">אפשר לנסות שוב.</${Notice}>`}
     <div class="card bk-sum">
       ${row('טיפול', nameOf(svc.name))}
       ${row('יום', fmtDateLong(date))}
       ${row('שעה', fmtTime(min))}
-      ${row('משך', fmtDuration(slotLength(svc, BOOK)))}
-      ${BOOK.showPrices && row('מחיר', html`<span class="money">${money(svc.price)}</span>`)}
+      ${row('משך', fmtDuration(slotLength(svc, CFG)))}
+      ${CFG.showPrices && row('מחיר', html`<span class="money">${money(svc.price)}</span>`)}
       ${row('שם', String(me.name || '').trim())}
       ${row('טלפון', formatPhone(ph), true)}
       ${me.birthDate && row('תאריך לידה', fmtBirth(me.birthDate))}
@@ -424,7 +503,7 @@ function SumScreen({ svc, date, min }) {
 
 function DoneScreen({ id }) {
   const [a, setA] = useState(undefined);
-  useEffect(() => { store.getAppointment(id).then(setA); }, [id]);
+  useEffect(() => { if (live) setA(readDone(id)); else store().getAppointment(id).then(setA); }, [id]);
   useScrollRestore(a !== undefined);
   if (a === undefined) return html`<${Shell} backTo=${null}><${Loading} /></${Shell}>`;
   if (!a) return html`<${Shell} backTo=${null}><${Notice} title="התור לא נמצא במכשיר הזה" /></${Shell}>`;
@@ -444,17 +523,222 @@ function DoneScreen({ id }) {
   </${Shell}>`;
 }
 
+const TOKEN_RE = /^[0-9a-f]{32}([0-9a-f]{32})?$/;
+const myCache = new Map();
+
+function WhatsAppMe({ primary = false } = {}) {
+  return html`<a class=${primary ? 'btn btn-primary' : 'btn btn-soft'} href=${CFG.whatsapp.href} target="_blank" rel="noopener">
+    <${Icon} name="whatsapp" size=${22} /><span>${MY.wa}</span></a>`;
+}
+
+function MyNotFound() {
+  return html`<${Shell} backTo=${null}>
+    <${Notice} title=${MY.notFound}>${MY.notFoundText}</${Notice}>
+    <${WhatsAppMe} primary />
+  </${Shell}>`;
+}
+
+function MyOffline({ onRetry, backTo = null }) {
+  return html`<${Shell} backTo=${backTo}>
+    <${Notice} title=${TEXT.offTitle}>${MY.offText}</${Notice}>
+    <button type="button" class="btn btn-primary bk-retry" onClick=${onRetry}><span>${TEXT.retry}</span></button>
+    <${WhatsAppMe} />
+  </${Shell}>`;
+}
+
+const treatName = (a) => nameOf((a.items || []).map((it) => it.name).join(' + '));
+
+function MyScreen({ token }) {
+  const cached = myCache.get(token);
+  const [st, setSt] = useState(cached ? { kind: 'ok', data: cached.data } : { kind: 'loading' });
+  const [just, setJust] = useState(cached ? cached.just : null);
+  const [busy, setBusy] = useState(null);
+  const [failed, setFailed] = useState(false);
+  const [ask, setAsk] = useState(false);
+  const keep = (data, j = null) => { myCache.set(token, { data, just: null }); setSt({ kind: 'ok', data }); setJust(j); };
+  const load = () => {
+    if (!my || !TOKEN_RE.test(token || '')) { setSt({ kind: 'nf' }); return; }
+    setSt({ kind: 'loading' });
+    my.get(token).then((r) => {
+      if (r.ok) keep(r);
+      else setSt({ kind: r.code === 'not_found' ? 'nf' : 'off' });
+    });
+  };
+  useEffect(() => { if (cached) myCache.set(token, { ...cached, just: null }); else load(); }, [token]);
+  useScrollRestore(st.kind !== 'loading');
+
+  const act = async (kind) => {
+    if (busy) return;
+    setBusy(kind);
+    setFailed(false);
+    const r = kind === 'confirm' ? await my.confirm(token) : await my.cancel(token);
+    setBusy(null);
+    setAsk(false);
+    if (r.appointment) keep(r, r.ok ? kind : null);   // גם "לא מותר" מחזיר את המצב העדכני (למשל: עברו 48 השעות)
+    else if (r.code === 'not_found') setSt({ kind: 'nf' });
+    else setFailed(true);
+  };
+
+  if (st.kind === 'loading') return html`<${Shell} backTo=${null}><${Loading} /></${Shell}>`;
+  if (st.kind === 'nf') return html`<${MyNotFound} />`;
+  if (st.kind === 'off') return html`<${MyOffline} onRetry=${load} />`;
+  const a = st.data.appointment;
+  const live2 = a.status === 'booked' || a.status === 'confirmed';
+  const state = just === 'move' && live2 ? MY.moved
+    : a.status === 'confirmed' ? MY.confirmed
+    : a.status === 'booked' ? MY.askConfirm
+    : a.status === 'cancelled' ? MY.cancelled
+    : a.status === 'pending' ? MY.pending
+    : MY.over;
+  const can = a.can || {};
+  const cu = a.changeUntil;
+  const hours = Math.round((Number(a.changeUntilMin) || 2880) / 60);
+  const waShown = live2 && !!a.noChange;
+  const row = (k, v) => html`<div class="bk-sum-row"><span class="bk-sum-k">${k}</span><span class="bk-sum-v">${v}</span></div>`;
+  return html`<${Shell} backTo=${null}>
+    <h1>${MY.title} <em>${MY.titleEm}</em></h1>
+    ${failed && html`<${Notice} kind="danger" title=${MY.failed}>אפשר לנסות שוב.</${Notice}>`}
+    <${Notice} title=${state} />
+    <div class="card bk-sum bk-my-card">
+      ${row('טיפול', treatName(a))}
+      ${row('יום', fmtDateLong(a.date))}
+      ${row('שעה', fmtTime(a.startMin))}
+      ${!a.home && row('איפה', PLACE)}
+    </div>
+    ${live2 && html`<div class="bk-my-actions">
+      ${can.confirm && html`<button type="button" class="btn btn-primary" id="my-confirm" disabled=${!!busy} onClick=${() => act('confirm')}><span>${MY.confirm}</span></button>`}
+      ${can.change && html`<button type="button" class="btn btn-soft" id="my-change" disabled=${!!busy} onClick=${() => go(`my/${token}/move`)}><span>${MY.change}</span></button>`}
+      ${can.cancel && html`<button type="button" class="btn btn-danger" id="my-cancel" disabled=${!!busy} onClick=${() => setAsk(true)}><span>${MY.cancel}</span></button>`}
+      ${can.change && can.cancel && cu && html`<${Notice} id="my-until">${MY.until(fmtDateLong(cu.date), fmtTime(cu.min))}</${Notice}>`}
+      ${a.noChange === 'late' && html`<${Notice} id="my-late">${MY.late(hours)}</${Notice}>`}
+      ${(a.noChange === 'home' || a.noChange === 'moves') && html`<${Notice} id="my-wa-line">${MY.waChange}</${Notice}>`}
+      ${waShown && html`<${WhatsAppMe} primary=${!can.confirm} />`}
+    </div>`}
+    ${live2 && !a.home && html`<a class="btn btn-soft" id="my-waze" href=${WAZE} target="_blank" rel="noopener"><span>${MY.waze}</span></a>`}
+    ${live2 && !waShown && html`<${AskButton} />`}
+    ${a.status === 'pending' && html`<${WhatsAppMe} />`}
+    ${(a.status === 'cancelled' || a.status === 'over') && html`<a class="btn btn-primary" href="#/"><span>${BUTTONS.book}</span></a>`}
+    ${ask && html`<${Sheet} key="cancel" title=${MY.cancelAsk} onClose=${() => { if (!busy) setAsk(false); }}>
+      <div class="bk-my-actions">
+        <button type="button" class="btn btn-danger" id="my-cancel-yes" disabled=${!!busy} onClick=${() => act('cancel')}><span>${MY.cancelYes}</span></button>
+        <button type="button" class="btn btn-soft" id="my-cancel-no" disabled=${!!busy} onClick=${() => setAsk(false)}><span>${MY.cancelNo}</span></button>
+      </div>
+    </${Sheet}>`}
+  </${Shell}>`;
+}
+
+function MoveScreen({ token, query }) {
+  const cached = myCache.get(token);
+  const [mine, setMine] = useState(cached ? cached.data.appointment : null);
+  const [days, setDays] = useState(null);
+  const [offline, setOffline] = useState(false);
+  const [date, setDate] = useState(isYmd(query.d || '') ? query.d : null);
+  const [min, setMin] = useState(query.m != null && query.m !== '' ? Number(query.m) : null);
+  const [sheet, setSheet] = useState(null);
+  const [all, setAll] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const home = () => go(`my/${token}`, { replace: true });
+  const load = async () => {
+    if (!my || !live || !TOKEN_RE.test(token || '')) { home(); return; }
+    setOffline(false);
+    try {
+      let m = mine;
+      if (!m) {
+        const r = await my.get(token);
+        if (!r.ok) { if (r.code === 'not_found') { home(); return; } throw new Error(r.code); }
+        myCache.set(token, { data: r, just: null });
+        m = r.appointment;
+        setMine(m);
+      }
+      if (!(m.can && m.can.change)) { home(); return; }
+      const d = await live.moveDays(m);
+      CFG = live.cfg;
+      setDays(d);
+    } catch {
+      setOffline(true);
+    }
+  };
+  useEffect(() => { load(); }, [token]);
+  useScrollRestore(!!days || offline);
+
+  const day = days && days.find((d) => d.date === date);
+  const chosen = !!(day && min != null && day.starts.includes(min));
+  const shown = days ? (all ? days : days.slice(0, FIRST_DAYS)) : [];
+  const dateHidden = days && date && !shown.some((d) => d.date === date);
+  const pickDay = (d) => { setDate(d); setMin(null); setError(null); setQuery(`my/${token}/move?d=${d}`); setSheet('time'); };
+  const pickTime = (m) => { setMin(m); setError(null); setQuery(`my/${token}/move?d=${date}&m=${m}`); setSheet(null); };
+  const save = async () => {
+    if (!chosen || busy) return;
+    setBusy(true);
+    setError(null);
+    const r = await my.move(token, date, min);
+    setBusy(false);
+    if (r.ok) { myCache.set(token, { data: r, just: 'move' }); back(`/my/${token}`); return; }
+    if (r.code === 'slot_taken') { setError('slot'); setMin(null); setDays(null); live.stale(); load(); return; }
+    if (r.code === 'not_found') { myCache.delete(token); home(); return; }
+    if (r.appointment) { myCache.set(token, { data: r, just: null }); back(`/my/${token}`); return; }
+    setError('other');
+  };
+
+  if (offline && !days) return html`<${MyOffline} onRetry=${load} backTo=${`/my/${token}`} />`;
+  const foot = days && days.length > 0
+    && html`<button type="button" class="btn btn-primary" id="my-save" disabled=${!chosen || busy} onClick=${save}><span>${MY.save}</span></button>`;
+  return html`<${Shell} backTo=${`/my/${token}`} foot=${foot}>
+    <h1>${MY.moveTitle} <em>${MY.moveEm}</em></h1>
+    ${mine && html`<${Picked} svc=${{ name: treatName(mine) }} date=${mine.date} min=${mine.startMin} />`}
+    ${error === 'slot' && html`<${Notice} kind="warn" title="השעה הזאת כבר נתפסה">אפשר לבחור שעה אחרת.</${Notice}>`}
+    ${error === 'other' && html`<${Notice} kind="danger" title=${MY.failed}>אפשר לנסות שוב.</${Notice}>`}
+    ${!days && html`<${Loading} />`}
+    ${days && days.length === 0 && html`<${Notice} title="אין כרגע שעות פנויות לטיפול הזה" /><${WhatsAppMe} primary />`}
+    ${days && days.length > 0 && html`<div class="bk-picks">
+      <${PickButton} id="bk-pick-day" icon="calendar" label=${BUTTONS.pickDay} value=${day ? fmtDateLong(day.date) : null} onClick=${() => setSheet('day')} />
+      <${PickButton} id="bk-pick-time" icon="clock" label=${BUTTONS.pickTime} value=${chosen ? fmtTime(min) : null} disabled=${!day} onClick=${() => setSheet('time')} />
+    </div>`}
+    ${sheet === 'day' && days && html`<${Sheet} key="day" title=${BUTTONS.pickDay} onClose=${() => setSheet(null)}>
+      <div class="bk-grid bk-days">
+        ${(dateHidden ? days : shown).map((d) => html`<button type="button" key=${d.date} class=${cx('pill chip', d.date === date && 'is-active')}
+          aria-pressed=${d.date === date ? 'true' : 'false'} onClick=${() => pickDay(d.date)}><span>${dayChip(d.date)}</span></button>`)}
+      </div>
+      ${!all && !dateHidden && days.length > FIRST_DAYS && html`<button type="button" class="btn btn-soft" onClick=${() => setAll(true)}><span>ימים נוספים</span></button>`}
+    </${Sheet}>`}
+    ${sheet === 'time' && day && html`<${Sheet} key="time" title=${BUTTONS.pickTime} onClose=${() => setSheet(null)}>
+      <p class="bk-meta">${fmtDateLong(day.date)}</p>
+      <div class="bk-grid bk-times">
+        ${day.starts.map((m) => html`<button type="button" key=${m} class=${cx('pill chip', m === min && 'is-active')}
+          aria-pressed=${m === min ? 'true' : 'false'} onClick=${() => pickTime(m)}><span>${fmtTime(m)}</span></button>`)}
+      </div>
+    </${Sheet}>`}
+  </${Shell}>`;
+}
+
+function OfflineScreen({ onRetry }) {
+  return html`<${Shell} backTo=${null}><${Offline} onRetry=${onRetry} /></${Shell}>`;
+}
+
 function App() {
   const r = useRoute();
   const [services, setServices] = useState(null);
-  useEffect(() => {
-    store.listServices().then((list) => setServices(list.filter((s) => publicMode(s, BOOK))));
-  }, []);
+  const [failed, setFailed] = useState(false);
+  const started = useRef(false);
+  const load = () => {
+    started.current = true;
+    if (!live) { store().listServices().then((list) => setServices(list.filter((s) => publicMode(s, CFG)))); return; }
+    setFailed(false);
+    live.load().then((x) => { CFG = x.cfg; setServices(x.services.filter((s) => publicMode(s, CFG))); }, (err) => { console.warn('booking_open', err); setFailed(true); });
+  };
+  const isMy = r.seg[0] === 'my';
+  useEffect(() => { if (!isMy && !started.current) load(); }, [isMy]);
+  if (isMy) {
+    const view = r.seg[2] === 'move' ? html`<${MoveScreen} token=${r.seg[1] || ''} query=${r.query} />` : html`<${MyScreen} token=${r.seg[1] || ''} />`;
+    return html`<div key=${r.key}>${view}</div>`;
+  }
+  if (failed) return html`<${OfflineScreen} onRetry=${load} />`;
   if (!services) return html`<div class="bk"><${Loading} /></div>`;
 
   const [screen, a, b, c] = r.seg;
   const svc = a && services.find((s) => s.id === a);
-  const bookable = svc && publicMode(svc, BOOK) === 'book';
+  const bookable = svc && publicMode(svc, CFG) === 'book';
   const slotOk = isYmd(b || '') && /^\d+$/.test(c || '');
   let view = null;
   if (!screen) view = html`<${ListScreen} services=${services} />`;
@@ -470,10 +754,49 @@ function App() {
   return html`<div key=${r.key}>${view}</div>`;
 }
 
+async function readSupabase() {
+  try {
+    const m = await import('../config.js');
+    const c = m.SUPABASE || {};
+    const url = String(c.url || '').trim();
+    const key = String(c.key || '').trim();
+    return { url, key, problem: typeof m.configProblem === 'function' ? m.configProblem({ url, key }) : null };
+  } catch {
+    return { url: '', key: '' };
+  }
+}
+
+function loadScript(src) {
+  if (globalThis.supabase && typeof globalThis.supabase.createClient === 'function') return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => resolve();
+    s.onerror = () => { s.remove(); reject(new Error(`לא נטען: ${src}`)); };
+    document.head.appendChild(s);
+  });
+}
+
 async function boot() {
   const root = document.getElementById('app');
+  const cfg = await readSupabase();
+  if (cfg.url && cfg.key) {
+    if (cfg.problem) { console.error(cfg.problem); render(html`<${OfflineScreen} onRetry=${() => location.reload()} />`, root); return; }
+    try {
+      await loadScript('vendor/supabase.js');
+      const client = globalThis.supabase.createClient(cfg.url, cfg.key, CLIENT_OPTIONS);
+      live = createRemoteSource(createBookRemote(client), BOOK);
+      my = createMyRemote(client);
+    } catch (err) {
+      console.warn('הספרייה לא נטענה', err);
+      render(html`<${OfflineScreen} onRetry=${() => location.reload()} />`, root);
+      return;
+    }
+    render(html`<${App} />`, root);
+    return;
+  }
   try {
-    await store.getSettings();
+    await store().getSettings();
   } catch (err) {
     console.error('הטעינה נכשלה', err);
   }

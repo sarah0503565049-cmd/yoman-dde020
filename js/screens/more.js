@@ -5,6 +5,7 @@ import { useData } from '../ui/hooks.js';
 import { getStore } from '../data/store.js';
 import { DAY_NAMES, timeOptions } from '../lib/time.js';
 import { syncInfo } from '../boot.js';
+import MfaSection from './mfa.js';   // הקוד מהטלפון (מצב אמיתי בלבד)
 
 const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;   // 1440 = 24:00
 const opts = (from, to, step) => timeOptions(from, to + 1, step).map((m) => ({ value: m, label: hhmm(m) }));
@@ -127,6 +128,7 @@ export default function More() {
       <${Row} title="דוחות" sub="הכנסות ומכירות, לפי יום, שבוע, חודש או טווח" href="/reports" chevron />
       <${Row} title="פריטים" href="/items" chevron />
       <${Row} title="הודעות אוטומטיות" sub="מה כתוב בכל הודעה ללקוחות, ומתי היא יוצאת" href="/messages" chevron />
+      ${sync && html`<${Row} title="ייבוא נתונים" sub="קובץ העלייה מהמחשב" href="/import" chevron />`}
     </${List}>
     ${!settings ? html`<${Loader} />` : html`
       <${Section} title="שעות היומן"><${DiaryHours} settings=${settings} /></${Section}>
@@ -154,6 +156,7 @@ export default function More() {
         </${Card}>
       </${Section}>
 
+      ${sync && sync.mfa && html`<${MfaSection} mfa=${sync.mfa} />`}
       ${sync ? html`<${Button} kind="soft" onClick=${signOut}>יציאה מהחשבון</${Button}>` : html`
       <${Section} title="נתוני דוגמה">
         <${Card}>

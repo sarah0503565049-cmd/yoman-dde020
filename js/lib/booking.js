@@ -105,6 +105,48 @@ export function bookableDays(lengthMin, ctx, { from, days = 42 } = {}) {
   return out;
 }
 
+export const isUnseenOnline = (a, today) => !!a && a.source === 'online' && !a.seenAt && isActive(a) && a.date >= today;
+
+export function unseenOnline(appts, today) {
+  return (appts || []).filter((a) => isUnseenOnline(a, today) && a.status !== 'pending')
+    .sort((a, b) => a.date.localeCompare(b.date) || a.startMin - b.startMin);
+}
+
+export function freshOnline(appts, today, known) {
+  const list = (appts || []).filter((a) => isUnseenOnline(a, today));
+  const ids = new Set(list.map((a) => a.id));
+  if (!known) return { known: ids, fresh: [] };
+  return { known: new Set([...known, ...ids]), fresh: list.filter((a) => !known.has(a.id)) };
+}
+
+export function linkNotice(a, today) {
+  const e = a && a.linkEvent;
+  if (!e || typeof e !== 'object' || a.seenAt || typeof e.at !== 'string') return null;
+  if (e.kind === 'cancel') {
+    const day = (e.from && e.from.date) || a.date;
+    return a.status === 'cancelled' && a.cancelledBy === 'link' && a.cancelledAt === e.at && day >= today ? 'cancel' : null;
+  }
+  if (e.kind === 'move') {
+    const to = e.to || {};
+    return isActive(a) && a.date === to.date && a.startMin === to.startMin && a.date >= today ? 'move' : null;
+  }
+  return null;
+}
+
+export function linkNotices(appts, today) {
+  const at = (x) => (x.kind === 'cancel' && x.appt.linkEvent.from ? x.appt.linkEvent.from : x.appt);
+  return (appts || []).map((a) => ({ appt: a, kind: linkNotice(a, today) })).filter((x) => x.kind)
+    .sort((x, y) => String(at(x).date).localeCompare(String(at(y).date)) || Number(at(x).startMin) - Number(at(y).startMin));
+}
+
+export function freshLinkNotices(appts, today, known) {
+  const list = linkNotices(appts, today);
+  const key = (x) => `${x.appt.id}|${x.appt.linkEvent.at}`;
+  const keys = new Set(list.map(key));
+  if (!known) return { known: keys, fresh: [] };
+  return { known: new Set([...known, ...keys]), fresh: list.filter((x) => !known.has(key(x))) };
+}
+
 export const cleanName = (s) => String(s || '').trim().replace(/\s+/g, ' ');
 export const sameName = (a, b) => cleanName(a).toLowerCase() === cleanName(b).toLowerCase();
 

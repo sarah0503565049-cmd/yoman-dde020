@@ -1,5 +1,5 @@
 
-const CACHE = 'torim-v3';
+const CACHE = 'torim-v4';
 const CORE = [
   './',
   'index.html',
@@ -10,14 +10,24 @@ const CORE = [
   'css/lists.css',
   'css/cards.css',
   'css/reports.css',
+  'css/outbox.css',
   'vendor/preact-htm.js',
   'js/app.js',
   'js/boot.js',
+  'js/first-hash.js',
   'js/config.js',
   'js/screens/login.js',
+  'js/screens/mfa.js',
+  'js/lib/auth-link.js',
+  'js/lib/auth-flow.js',
+  'js/screens/import.js',
+  'js/lib/launch-file.js',
   'js/data/sync-storage.js',
   'js/data/remote-supabase.js',
   'js/lib/sync.js',
+  'js/lib/outbox.js',
+  'js/lib/senders.js',
+  'js/screens/outbox.js',
   'vendor/supabase.js',
   'js/router.js',
   'js/routes.js',

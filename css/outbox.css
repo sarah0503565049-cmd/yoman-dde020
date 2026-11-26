@@ -1,0 +1,15 @@
+
+
+.ob-item { gap: var(--g2); }
+.ob-head { display: flex; align-items: center; justify-content: space-between; gap: var(--g2); }
+.ob-name { min-width: 0; font-size: 18px; font-weight: 700; color: var(--espresso); overflow-wrap: anywhere; }
+.ob-sub { font-size: var(--fs-sub); color: var(--ink); text-align: start; }
+.ob-ask { font-weight: 600; color: var(--espresso); text-align: start; }
+.ob-toggle { align-self: flex-start; }
+.ob-skip { align-self: flex-start; }
+
+.ob-line { flex-direction: row; align-items: center; gap: var(--g2); background: var(--olive-soft); border-color: transparent; color: var(--olive-deep); }
+.ob-line-icon { flex: none; display: flex; }
+.ob-line-text { flex: 1; min-width: 0; font-weight: 700; text-align: start; }
+.ob-skip { min-width: 96px; }
+.ob-item .msg-bubble { text-align: justify; text-wrap: pretty; }

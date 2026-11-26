@@ -12,5 +12,14 @@ export const BOOK = {
 
   minGapMin: null,
 
+  hidden: [],
+
+  maxFuturePerPhone: 2,   // תורים עתידיים שנקבעו באתר לאותו טלפון
+  maxPerHour: 5,          // תורים מהאתר בשעה האחרונה, לכל העסק
+  maxPerDay: 15,          // תורים מהאתר ב-24 השעות האחרונות, לכל העסק
+
+  changeUntilMin: 48 * 60,
+  maxMovesPerAppt: 3,     // כמה פעמים אפשר להזיז אותו תור בקישור (הגנה; 0 = בלי תקרה). לא נשלח לדף
+
   whatsapp: { label: '058-7801908', href: 'https://wa.me/972587801908' },
 };

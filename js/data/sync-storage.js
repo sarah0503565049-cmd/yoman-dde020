@@ -20,7 +20,9 @@ export function createSyncStorage({ local, remote, key = 'torim.v1' } = {}) {
   })();
   let meta = (() => {
     const m = parse(local.getItem(SYNC_KEY));
-    return m && typeof m === 'object' ? { linked: !!m.linked, cursor: m.cursor || null } : { linked: false, cursor: null };
+    return m && typeof m === 'object'
+      ? { linked: !!m.linked, cursor: m.cursor || null, epoch: m.epoch || null }
+      : { linked: false, cursor: null, epoch: null };
   })();
 
   let rejected = (() => {
@@ -32,6 +34,8 @@ export function createSyncStorage({ local, remote, key = 'torim.v1' } = {}) {
   let inflightFlush = null;
   let inflightPull = null;
   let inflightStart = null;
+  let inflightAdopt = null;
+  let heard = false;         // האם בהרצה הזאת כבר הייתה משיכה מוצלחת אחת (לפניה לא שולחים כלום)
   let pulling = 0;           // כמה משיכות רצות עכשיו
   let sentWhilePulling = new Set(); // שורות שנשלחו בזמן משיכה: התשובה שלה עלולה להיות ישנה מהן
   let unlisten = null;
@@ -49,6 +53,40 @@ export function createSyncStorage({ local, remote, key = 'torim.v1' } = {}) {
   function saveState(state) {
     raw = JSON.stringify(state);
     local.setItem(key, raw);
+  }
+
+  function epochOf(rows) {
+    let found = null;
+    for (const r of rows || []) {
+      if (r && r.table === 'settings' && !r.gone && r.doc && r.doc.epoch) found = String(r.doc.epoch);
+    }
+    return found;
+  }
+
+  async function adoptAll() {
+    const rows = await remote.pull(null);
+    const cur = parse(raw);
+    const seededOn = cur && cur.seededOn ? cur.seededOn : null;
+    saveState(stateFromRows(rows, { seededOn, historyAdded: true }));
+    outbox = [];
+    saveOutbox();
+    rejected = [];
+    saveRejected();
+    sentWhilePulling = new Set();
+    meta.cursor = nextCursor(null, rows);
+    meta.epoch = epochOf(rows);
+    saveMeta();
+    heard = true;
+    failed = false;
+    emit();
+  }
+
+  function adoptNow() {
+    if (!inflightAdopt) {
+      inflightAdopt = adoptAll().then(() => true, () => { failed = true; return false; })
+        .finally(() => { inflightAdopt = null; });
+    }
+    return inflightAdopt;
   }
 
   function applyRows(rows, pending) {
@@ -89,6 +127,7 @@ export function createSyncStorage({ local, remote, key = 'torim.v1' } = {}) {
   function flush() {
     if (inflightFlush) return inflightFlush;
     if (!meta.linked || !outbox.length) return Promise.resolve(true);
+    if (!heard) return pullNow().then((ok) => (ok && heard ? flush() : false));
     const snapshot = outbox.slice();
     const sent = compactOutbox(snapshot);
     inflightFlush = (async () => {
@@ -128,6 +167,9 @@ export function createSyncStorage({ local, remote, key = 'torim.v1' } = {}) {
       if (pulling === 1) sentWhilePulling = new Set();
       try {
         const rows = await remote.pull(meta.cursor);
+        const epoch = epochOf(rows);
+        if (epoch && epoch !== meta.epoch) return await adoptNow(); // המסד הוחלף: מאמצים הכול במקום למזג
+        heard = true;
         const pending = pendingKeys(outbox);
         for (const k of sentWhilePulling) pending.add(k);
         applyRows(rows, pending);
@@ -147,6 +189,11 @@ export function createSyncStorage({ local, remote, key = 'torim.v1' } = {}) {
   }
 
   async function wake() {
+    if (!heard) { // ההתעוררות הראשונה של ההרצה: קודם שומעים, ורק אז שולחים
+      await pullNow();
+      await flush();
+      return;
+    }
     await flush();
     await pullNow();
   }
@@ -154,7 +201,11 @@ export function createSyncStorage({ local, remote, key = 'torim.v1' } = {}) {
   function startListening() {
     if (unlisten) { unlisten(); unlisten = null; }
     const off = remote.listen((rows) => {
-      try { applyRows(rows, pendingKeys(outbox)); } catch { /* שורה לא תקינה לא מפילה את ההאזנה */ }
+      try {
+        const epoch = epochOf(rows);
+        if (epoch && epoch !== meta.epoch) { adoptNow(); return; } // המסד הוחלף בזמן שהאפליקציה פתוחה
+        applyRows(rows, pendingKeys(outbox));
+      } catch { /* שורה לא תקינה לא מפילה את ההאזנה */ }
     });
     unlisten = typeof off === 'function' ? off : null;
   }
@@ -165,6 +216,7 @@ export function createSyncStorage({ local, remote, key = 'torim.v1' } = {}) {
       const cur = parse(raw);
       outbox = cur ? compactOutbox(diffState(null, cur)) : [];
       saveOutbox();
+      heard = true; // המסד ענה שהוא ריק: אין מה לשמוע לפני השליחה
     } else {
       const rows = await remote.pull(null);
       const cur = parse(raw);
@@ -173,6 +225,8 @@ export function createSyncStorage({ local, remote, key = 'torim.v1' } = {}) {
       outbox = [];
       saveOutbox();
       meta.cursor = nextCursor(null, rows);
+      meta.epoch = epochOf(rows);
+      heard = true;
     }
     meta.linked = true;
     saveMeta();
@@ -212,6 +266,7 @@ export function createSyncStorage({ local, remote, key = 'torim.v1' } = {}) {
       local.removeItem(key);
     },
     start, stop, flush, pullNow, wake, localChanged,
+    epoch: () => meta.epoch,
     status: () => (rejected.length ? 'error' : failed ? 'offline' : outbox.length ? 'pending' : 'synced'),
     rejected: () => rejected.map((r) => ({ ...r })),
     clearRejected() { rejected = []; saveRejected(); },
