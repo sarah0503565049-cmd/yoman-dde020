@@ -33,7 +33,9 @@ const CLIENT_NAMES = [
 
 const pad2 = (n) => String(n).padStart(2, '0');
 
-function buildSettings() {
+export const DEMO_INVOICE_DAYS = 6;
+
+function buildSettings(today) {
   const day = [{ from: 540, to: 1080 }];
   return {
     businessName: 'Sarah B Cosmetics',
@@ -47,6 +49,9 @@ function buildSettings() {
     categories: ['פדיקור פרא-רפואי', 'פדיקור טבעי', 'טיפולי רגליים', 'טיפולי ידיים', 'מוצרים למכירה'],
     demo: true,
     paymentMethods: ['מזומן', 'אשראי', 'העברה בנקאית', 'ביט', 'צ\'ק'],
+    growMethods: ['אשראי', 'ביט'],
+    invoicesFrom: addDays(today, -DEMO_INVOICE_DAYS),
+    methodsFrom: { 'ביט': '2027-01-01' },
     clinicHours: { 0: [...day], 1: [...day], 2: [{ from: 780, to: 1080 }], 3: [...day], 4: [...day], 5: [], 6: [] },
   };
 }
@@ -151,7 +156,7 @@ function appointmentSpecs() {
 }
 
 export function buildSeed(today) {
-  const settings = buildSettings();
+  const settings = buildSettings(today);
   const services = buildServices();
   const clients = buildClients(today);
   const blocks = buildBlocks(today);

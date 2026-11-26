@@ -24,6 +24,7 @@ const TEXT = {
   retry: 'לנסות שוב',
   limit: 'את התור הזה נשמח לקבוע איתך בוואטסאפ.',
 };
+const DONE_PENDING = 'אשלח לך אישור בוואטסאפ בהקדם 🤍';
 const MY = {
   title: 'התור', titleEm: 'שלך',
   askConfirm: 'אשמח שתאשר/י הגעה',
@@ -508,10 +509,11 @@ function DoneScreen({ id }) {
   if (a === undefined) return html`<${Shell} backTo=${null}><${Loading} /></${Shell}>`;
   if (!a) return html`<${Shell} backTo=${null}><${Notice} title="התור לא נמצא במכשיר הזה" /></${Shell}>`;
   const name = nameOf((a.items || []).map((it) => it.name).join(' + '));
+  const wait = a.status === 'pending';
   return html`<${Shell} backTo=${() => go('/', { replace: true })}>
     <div class="bk-done">
-      <h1>התור <em>נקבע</em></h1>
-      <p>תודה, נתראה בקליניקה 🤍</p>
+      ${wait ? html`<h1>התור <em>מחכה לאישור</em> שלי</h1>` : html`<h1>התור <em>נקבע</em></h1>`}
+      <p>${wait ? DONE_PENDING : 'תודה, נתראה בקליניקה 🤍'}</p>
     </div>
     <div class="card bk-sum">
       <div class="bk-sum-row"><span class="bk-sum-k">טיפול</span><span class="bk-sum-v">${name}</span></div>

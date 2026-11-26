@@ -5,6 +5,7 @@ import {
   isMobilePhone, birthParts, fmtBirth,
 } from '../lib/model.js';
 import { expandBlocks } from '../lib/recur.js';
+import { cleanInvoiceNo } from '../lib/invoices.js';
 import { publicMode, slotLength, freeStarts, bookableDays, cleanName, sameName, ONLINE_MIN_NOTICE_MIN, minGapFor } from '../lib/booking.js';
 import { buildSeed, SERVICE_PATCH, NAME_PATCH } from './seed.js';
 import { addHistory } from './seed-history.js';
@@ -300,9 +301,23 @@ export function createStore({ storage, today, history = false } = {}) {
       const a = db.appointments.find((x) => x.id === id);
       if (!a) throw new Error('התור לא נמצא');
       const from = a.status;
+      const invoiceNo = a.payment && a.payment.invoiceNo ? String(a.payment.invoiceNo) : '';
       a.status = 'arrived';
       a.payment = null; // everPaid נשאר
-      logAudit(db, 'unpay', id, from, 'arrived', '');
+      logAudit(db, 'unpay', id, from, 'arrived', invoiceNo ? `חשבונית ${invoiceNo}` : '');
+      write(db);
+      return clone(a);
+    },
+    async setInvoiceNo(id, no) {
+      const { value, error } = cleanInvoiceNo(no);
+      if (error) throw new Error(error);
+      const db = read();
+      const a = db.appointments.find((x) => x.id === id);
+      if (!a) throw new Error('התור לא נמצא');
+      if (a.status !== 'paid' || !a.payment) throw new Error('התור עוד לא שולם');
+      const prev = a.payment.invoiceNo ? String(a.payment.invoiceNo) : '';
+      a.payment = { ...a.payment, invoiceNo: value, invoiceAt: nowIso() };
+      logAudit(db, 'invoice', id, 'paid', 'paid', prev && prev !== value ? `חשבונית ${value} · במקום ${prev}` : `חשבונית ${value}`);
       write(db);
       return clone(a);
     },

@@ -15,8 +15,10 @@ export const BOOK = {
   hidden: [],
 
   maxFuturePerPhone: 2,   // תורים עתידיים שנקבעו באתר לאותו טלפון
-  maxPerHour: 5,          // תורים מהאתר בשעה האחרונה, לכל העסק
-  maxPerDay: 15,          // תורים מהאתר ב-24 השעות האחרונות, לכל העסק
+  maxPerSourceHour: 3,
+  maxPerSourceDay: 6,
+  maxPerHour: 5,          // תורים מהאתר בשעה האחרונה
+  maxPerDay: 15,          // תורים מהאתר ב-24 השעות האחרונות
 
   changeUntilMin: 48 * 60,
   maxMovesPerAppt: 3,     // כמה פעמים אפשר להזיז אותו תור בקישור (הגנה; 0 = בלי תקרה). לא נשלח לדף

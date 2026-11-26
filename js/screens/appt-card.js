@@ -13,6 +13,7 @@ import {
 } from '../lib/model.js';
 import { expandBlocks } from '../lib/recur.js';
 import { fmtDateLong, fmtTime, fmtDuration, todayYmd } from '../lib/time.js';
+import { methodsOn, unpayWarning } from '../lib/invoices.js';
 
 const FALLBACK = '/cal';
 const CHIP_STATUSES = ['booked', 'confirmed', 'arrived', 'noshow'];
@@ -272,7 +273,7 @@ export default function ApptCard({ params }) {
   };
 
   const unpay = async () => {
-    const ok = await confirmSheet({ title: 'לבטל את רישום התשלום?', ok: 'ביטול התשלום', cancel: 'חזרה', danger: true });
+    const ok = await confirmSheet({ title: 'לבטל את רישום התשלום?', text: unpayWarning(appt) || undefined, ok: 'ביטול התשלום', cancel: 'חזרה', danger: true });
     if (ok) act(() => getStore().unpayAppointment(appt.id), 'התשלום בוטל');
   };
 
@@ -357,6 +358,7 @@ export default function ApptCard({ params }) {
 
     ${paid && html`<div class="ac-actions">
       <p class="ac-paid">שולם · ${p ? p.method : ''} · ${fmtMoney(p ? p.amount : apptTotal(appt))}${p && p.tip > 0 ? ' · טיפ ' + fmtMoney(p.tip) : ''}</p>
+      ${p && p.invoiceNo && html`<p class="ac-note">מספר החשבונית: ${p.invoiceNo}</p>`}
       <${Button} kind="soft" href=${nextApptPath(appt)} onClick=${link(nextApptPath(appt))}>לקבוע את התור הבא</${Button}>
       <${Button} kind="danger" onClick=${unpay}>ביטול התשלום</${Button}>
     </div>`}
@@ -381,6 +383,6 @@ export default function ApptCard({ params }) {
     </${Section}>`}
 
     <${CancelSheet} open=${cancelOpen} busy=${cancelBusy} onClose=${() => setCancelOpen(false)} onSubmit=${cancel} />
-    <${TillSheet} open=${tillOpen} appt=${appt} methods=${(settings && settings.paymentMethods) || []} onClose=${() => setTillOpen(false)} />
+    <${TillSheet} open=${tillOpen} appt=${appt} methods=${methodsOn(settings, todayYmd())} onClose=${() => setTillOpen(false)} />
   </${Page}>`;
 }

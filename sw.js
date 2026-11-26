@@ -1,5 +1,5 @@
 
-const CACHE = 'torim-v4';
+const CACHE = 'torim-v5';
 const CORE = [
   './',
   'index.html',
@@ -28,6 +28,9 @@ const CORE = [
   'js/lib/outbox.js',
   'js/lib/senders.js',
   'js/screens/outbox.js',
+  'js/lib/online-text.js',
+  'js/lib/invoices.js',
+  'js/screens/invoices.js',
   'vendor/supabase.js',
   'js/router.js',
   'js/routes.js',

@@ -122,6 +122,10 @@ export function freshOnline(appts, today, known) {
 export function linkNotice(a, today) {
   const e = a && a.linkEvent;
   if (!e || typeof e !== 'object' || a.seenAt || typeof e.at !== 'string') return null;
+  if ((e.kind === 'cancel' || e.kind === 'move') && typeof e.overriddenAt === 'string') {
+    const days = [e.from && e.from.date, e.to && e.to.date, a.date].filter((d) => typeof d === 'string');
+    return days.some((d) => d >= today) ? 'overridden' : null;
+  }
   if (e.kind === 'cancel') {
     const day = (e.from && e.from.date) || a.date;
     return a.status === 'cancelled' && a.cancelledBy === 'link' && a.cancelledAt === e.at && day >= today ? 'cancel' : null;
@@ -134,14 +138,14 @@ export function linkNotice(a, today) {
 }
 
 export function linkNotices(appts, today) {
-  const at = (x) => (x.kind === 'cancel' && x.appt.linkEvent.from ? x.appt.linkEvent.from : x.appt);
+  const at = (x) => (x.kind !== 'move' && x.appt.linkEvent.from ? x.appt.linkEvent.from : x.appt);
   return (appts || []).map((a) => ({ appt: a, kind: linkNotice(a, today) })).filter((x) => x.kind)
     .sort((x, y) => String(at(x).date).localeCompare(String(at(y).date)) || Number(at(x).startMin) - Number(at(y).startMin));
 }
 
 export function freshLinkNotices(appts, today, known) {
   const list = linkNotices(appts, today);
-  const key = (x) => `${x.appt.id}|${x.appt.linkEvent.at}`;
+  const key = (x) => `${x.appt.id}|${x.appt.linkEvent.at}|${x.appt.linkEvent.overriddenAt || ''}`;
   const keys = new Set(list.map(key));
   if (!known) return { known: keys, fresh: [] };
   return { known: new Set([...known, ...keys]), fresh: list.filter((x) => !known.has(key(x))) };

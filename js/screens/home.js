@@ -12,6 +12,8 @@ import { useData, useNow, useSessionState } from '../ui/hooks.js';
 import { getStore } from '../data/store.js';
 import { OutboxLine } from './outbox.js';
 import { OnlineNew } from './online-new.js';
+import { InvoiceSheet } from './invoices.js';
+import { invoicesDue, paidOn } from '../lib/invoices.js';
 import { addDays, diffDays, dow, DAY_NAMES, fmtDate, fmtDateLong, fmtDayMonth, fmtTime } from '../lib/time.js';
 import {
   apptEnd, apptTotal, apptVisual, callsDue, firstVisitIds, isActive, needsNextAppointment,
@@ -117,6 +119,7 @@ function SplitRow({ href, title, sub, end, children }) {
 
 export default function Home() {
   const { today, min } = useNow();
+  const [invFor, setInvFor] = useState(null); // R24: התור שהחלונית "חשבונית להפקה" פתוחה עליו
   const { data } = useData(async (s) => {
     const [settings, appts, clients, services] = await Promise.all([s.getSettings(), s.listAppointments(), s.listClients(), s.listServices({ includeInactive: true })]);
     return { settings, appts, clients, services };
@@ -142,6 +145,7 @@ export default function Home() {
   const income = incomeRows(appts, null, { from: today, to: today }).reduce((s, r) => s + r.total, 0);
   const pending = appts.filter((a) => a.status === 'pending' && a.date >= today);
   const unpaid = appts.filter((a) => apptVisual(a, today, min, false).unpaid);
+  const invoices = invoicesDue(appts, settings);
   const calls = callsDue(appts, clients, today, tomorrow, min);
   const next = needsNextAppointment(appts, clients, today, settings);
 
@@ -179,6 +183,7 @@ export default function Home() {
       <${Tile} label="הכנסות היום" value=${html`<${Money} value=${income} />`} href=${reportHref('/reports/income', { p: 'day', d: today })} />
       <${Tile} label="ממתינים לאישור" value=${pending.length} onClick=${pending.length ? () => scrollToId('pending') : undefined} />
       <${Tile} label="לא שולמו" value=${unpaid.length} onClick=${unpaid.length ? () => scrollToId('unpaid') : undefined} />
+      <${Tile} label="חשבוניות להפקה" value=${invoices.length} onClick=${invoices.length ? () => scrollToId('invoices') : undefined} />
     </${Tiles}>
     <${OnlineNew} appts=${appts} clients=${clients} today=${today} />
 
@@ -190,6 +195,16 @@ export default function Home() {
           right=${html`<${Money} value=${apptTotal(a)} />`} />`)}
       </${List}>
     </${Section}>`}
+
+    ${invoices.length > 0 && html`<${Section} title="חשבוניות להפקה" id="invoices">
+      <${Notice} icon="coin">${invoices.length === 1 ? 'תשלום אחד מחכה לחשבונית בגרואו' : `${invoices.length} תשלומים מחכים לחשבונית בגרואו`}</${Notice}>
+      <${List}>
+        ${invoices.map((a) => html`<${Row} key=${a.id} onClick=${() => setInvFor(a)} title=${nameOf(a.clientId)}
+          sub=${`שולם ${fmtDayMonth(paidOn(a))} · ${a.payment.method}`}
+          right=${html`<${Money} value=${a.payment.amount} />`} />`)}
+      </${List}>
+    </${Section}>`}
+    <${InvoiceSheet} appt=${invFor} nameOf=${nameOf} onClose=${() => setInvFor(null)} />
 
     ${calls.length > 0 && html`<${Section} title="להתקשר היום" id="calls">
       <p class="sub card-note">תזכורת לתור, למי שלא קורא/ת הודעות. אחרי השיחה מסמנים "התקשרתי".</p>

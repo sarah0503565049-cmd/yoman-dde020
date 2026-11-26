@@ -48,6 +48,7 @@ export const ICONS = {
   chart: [P('M4 20.5h16'), P('M6.5 20.5v-6'), P('M11 20.5V9'), P('M15.5 20.5v-8.5'), P('M20 20.5V5.5')],
   download: [P('M12 4v11'), P('M7.5 10.5 12 15l4.5-4.5'), P('M4.5 19.5h15')],
   print: [P('M7 8.5V4h10v4.5'), html`<rect x="4" y="8.5" width="16" height="8" rx="2" />`, P('M7.5 14h9v6h-9z')],
+  copy: [html`<rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.5" />`, P('M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5')],
 };
 
 export function Icon({ name, size = 24, fill = false, class: cls = '', title }) {

@@ -21,6 +21,8 @@
 .home-days { flex: none; font-size: var(--fs-sub); font-weight: 600; color: var(--ink); white-space: nowrap; }
 .home-days.is-overdue { font-weight: 700; color: var(--terracotta-deep); }
 
+.home .tiles > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+
 .home-pend-link { display: flex; flex-direction: column; gap: 4px; color: inherit; }
 .home-pend-link .inline-row { margin-top: var(--g1); }
 
