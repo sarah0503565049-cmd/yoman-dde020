@@ -15,6 +15,10 @@ function CountRows({ plan }) {
     return html`<${Row} key=${key} title=${label} sub=${sub || null} right=${html`<strong class="num">${c.add}</strong>`} />`;
   })}
     ${plan.settings.add.length > 0 && html`<${Row} title="הגדרות" sub=${plan.settings.add.join(' · ')} right=${html`<strong class="num">${plan.settings.add.length}</strong>`} />`}
+    ${plan.sync && plan.sync.update > 0 && html`<${Row} title="תורים שהשתנו בתפעולית" sub=${plan.sync.paid ? `מתוכם שולמו: ${plan.sync.paid}` : null}
+      right=${html`<strong class="num">${plan.sync.update}</strong>`} />`}
+    ${plan.sync && plan.sync.cancel > 0 && html`<${Row} title="תורים שבוטלו או הוזזו בתפעולית" sub="יסומנו כמבוטלים, בלי הודעה ללקוחות"
+      right=${html`<strong class="num">${plan.sync.cancel}</strong>`} />`}
   </${List}>`;
 }
 
@@ -52,7 +56,9 @@ export default function Import({ query = {} }) {
     const n = plan.counts;
     const ok = await confirmSheet({
       title: 'לייבא ליומן?',
-      lines: [`${n.clients.add} לקוחות/ות, ${n.services.add} פריטים, ${n.blocks.add} אירועים, ${n.appointments.add} תורים`, 'אי אפשר לבטל בלחיצה. הכול יישמר וייכנס גם לטלפון.'],
+      lines: [`${n.clients.add} לקוחות/ות, ${n.services.add} פריטים, ${n.blocks.add} אירועים, ${n.appointments.add} תורים`,
+        ...(plan.sync && (plan.sync.update || plan.sync.cancel) ? [`יתעדכנו ${plan.sync.update} תורים ויבוטלו ${plan.sync.cancel}, לפי תפעולית`] : []),
+        'אי אפשר לבטל בלחיצה. הכול יישמר וייכנס גם לטלפון.'],
       ok: 'ייבוא', cancel: 'חזרה',
     });
     if (!ok) return;
@@ -82,6 +88,8 @@ export default function Import({ query = {} }) {
         <${Row} title="פריטים" right=${html`<strong class="num">${done.services}</strong>`} />
         <${Row} title="אירועים קבועים" right=${html`<strong class="num">${done.blocks}</strong>`} />
         <${Row} title="תורים" right=${html`<strong class="num">${done.appointments}</strong>`} />
+        ${done.updated > 0 && html`<${Row} title="תורים שעודכנו לפי תפעולית" right=${html`<strong class="num">${done.updated}</strong>`} />`}
+        ${done.cancelled > 0 && html`<${Row} title="תורים שבוטלו לפי תפעולית" right=${html`<strong class="num">${done.cancelled}</strong>`} />`}
       </${List}>
       <${Button} href="/more">חזרה ל"עוד"</${Button}>
     </${Page}>`;

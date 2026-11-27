@@ -7,6 +7,7 @@ import {
 import { expandBlocks } from '../lib/recur.js';
 import { cleanInvoiceNo } from '../lib/invoices.js';
 import { publicMode, slotLength, freeStarts, bookableDays, cleanName, sameName, ONLINE_MIN_NOTICE_MIN, minGapFor } from '../lib/booking.js';
+import { SYNC_STATES, SYNC_CANCEL_REASON } from '../lib/launch-file.js';
 import { buildSeed, SERVICE_PATCH, NAME_PATCH } from './seed.js';
 import { addHistory } from './seed-history.js';
 
@@ -525,13 +526,31 @@ export function createStore({ storage, today, history = false } = {}) {
       }
       const clientIds = new Set([...db.clients, ...lists.clients].map((c) => c.id));
       if (lists.appointments.some((a) => !clientIds.has(a.clientId))) throw new Error('בקובץ יש תור בלי כרטיס לקוח/ה');
+      const at = nowIso();
+      const touchable = (a) => a && a.importedFrom === 'tiffulit' && SYNC_STATES.includes(a.status) && !a.payment;
+      let updated = 0; let cancelled = 0;
+      for (const u of batch.update || []) {
+        const a = db.appointments.find((x) => x.id === u.id);
+        if (!touchable(a) || !u.patch) continue;
+        Object.assign(a, clone(u.patch));
+        updated += 1;
+      }
+      for (const id of batch.cancel || []) {
+        const a = db.appointments.find((x) => x.id === id);
+        if (!touchable(a)) continue;
+        const skip = { at, via: 'skip' };
+        Object.assign(a, { status: 'cancelled', cancelledBy: 'owner', cancelledAt: at, cancelReason: SYNC_CANCEL_REASON,
+          msgs: { ...(a.msgs || {}), 'cancel-owner': skip, 'cancel-client': skip } });
+        cancelled += 1;
+      }
       for (const key of Object.keys(lists)) db[key].push(...clone(lists[key]));
       for (const a of db.appointments) if (!a.token) a.token = newToken(); // גם לתור מיובא יש קישור אישי
       const { epoch, demo, importedLaunches, ...patch } = batch.settings || {};
       db.settings = { ...db.settings, ...clone(patch) };
       if (batch.launchId) db.settings.importedLaunches = [...done, batch.launchId];
       write(db);
-      return { services: lists.services.length, clients: lists.clients.length, appointments: lists.appointments.length, blocks: lists.blocks.length };
+      const synced = (batch.update || []).length + (batch.cancel || []).length > 0 ? { updated, cancelled } : {};
+      return { services: lists.services.length, clients: lists.clients.length, appointments: lists.appointments.length, blocks: lists.blocks.length, ...synced };
     },
 
     async firstVisitIds() { return modelFirstVisitIds(read().appointments); },

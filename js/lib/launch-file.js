@@ -115,9 +115,54 @@ export function planImport(file, state) {
       else bump('הכנסות מלפני היומן בצורה לא תקינה');
     }
   }
+  const sync = planSync(file, cur.appointments, out);
+  if (out.fatal.length) return out;
   out.problems = [...probs].map(([text, count]) => ({ text, count }));
-  const total = add.services.length + add.clients.length + add.appointments.length + add.blocks.length + Object.keys(patch).length;
+  const total = add.services.length + add.clients.length + add.appointments.length + add.blocks.length + Object.keys(patch).length
+    + sync.update.length + sync.cancel.length;
   out.canImport = total > 0;
-  out.batch = { launchId: file.launchId, settings: patch, ...add };
+  out.batch = { launchId: file.launchId, settings: patch, ...add, update: sync.update, cancel: sync.cancel };
   return out;
+}
+
+export const SYNC_STATES = ['booked', 'confirmed', 'pending'];
+export const SYNC_CANCEL_REASON = 'בוטל או הוזז בתפעולית';
+export const syncable = (a, from) => !!a && a.importedFrom === 'tiffulit' && SYNC_STATES.includes(a.status) && !a.payment
+  && isYmd(a.date) && a.date >= from;
+const itemsKey = (a) => JSON.stringify((a.items || []).map((it) => [it.serviceId, Number(it.price) || 0, it.durationMin || 0]));
+
+function planSync(file, appts, out) {
+  const res = { update: [], cancel: [] };
+  const s = file.sync;
+  if (s == null) return res;
+  if (!isObj(s) || s.source !== 'tiffulit' || !isYmd(s.from)) { out.fatal.push('הגדרת הסנכרון בקובץ לא תקינה.'); return res; }
+  const fileById = new Map(file.appointments.filter((r) => isObj(r) && typeof r.id === 'string').map((r) => [r.id, r]));
+  const inRange = [...fileById.values()].filter((r) => isYmd(r.date) && r.date >= s.from).length;
+  const mine = appts.filter((a) => syncable(a, s.from));
+  let paid = 0;
+  for (const a of mine) {
+    const r = fileById.get(a.id);
+    if (!r) { res.cancel.push(a.id); continue; }
+    if (r.status === 'cancelled') { res.cancel.push(a.id); continue; }
+    if (rowErrors('appointments', r)) continue;
+    const p = {};
+    if (r.status === 'paid' && r.payment) { Object.assign(p, { status: 'paid', payment: r.payment, everPaid: true }); paid += 1; }
+    else {
+      if (SYNC_STATES.includes(r.status) && r.status !== a.status) p.status = r.status;
+      if (itemsKey(r) !== itemsKey(a)) p.items = r.items;
+      if (r.durationMin !== a.durationMin) p.durationMin = r.durationMin;
+      if (String(r.note || '') !== String(a.note || '')) p.note = String(r.note || '');
+    }
+    if (Object.keys(p).length) res.update.push({ id: a.id, patch: p });
+  }
+  if (res.cancel.length >= 5 && res.cancel.length * 2 > mine.length) {
+    out.fatal.push(`הקובץ היה מבטל ${res.cancel.length} מתוך ${mine.length} תורים מתפעולית. כנראה הייצוא חלקי: צריך לייצא שוב מ-${s.from}.`);
+    return { update: [], cancel: [] };
+  }
+  if (mine.length && !inRange) {
+    out.fatal.push(`בקובץ אין אף תור מ-${s.from} והלאה, ולכן הוא לא מבטל כלום. צריך לייצא שוב.`);
+    return { update: [], cancel: [] };
+  }
+  out.sync = { from: s.from, checked: mine.length, update: res.update.length, paid, cancel: res.cancel.length };
+  return res;
 }
