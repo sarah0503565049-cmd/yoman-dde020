@@ -1,5 +1,5 @@
 
-const CACHE = 'torim-v10';
+const CACHE = 'torim-v12';
 const CORE = [
   './',
   'index.html',

@@ -9,6 +9,7 @@ import { BirthInput } from '../ui/birth-input.js';
 import { BOOK } from './config.js';
 import { HERO, LOGO, BUTTONS, TREATMENTS } from './content.js';
 import { CLIENT_OPTIONS, createBookRemote, createRemoteSource, createMyRemote } from './remote.js';
+import { mountCaptcha } from './captcha.js';
 import { CLINIC_WAY, WAZE } from '../lib/messages.js';
 
 let demoStore = null;
@@ -23,6 +24,8 @@ const TEXT = {
   offText: 'אפשר לנסות שוב בעוד רגע, או לקבוע בוואטסאפ.',
   retry: 'לנסות שוב',
   limit: 'את התור הזה נשמח לקבוע איתך בוואטסאפ.',
+  captchaTitle: 'התור עוד לא נקבע',
+  captchaText: 'בדיקת האבטחה של הדף לא עברה. אפשר ללחוץ שוב על "לקביעת התור", או לקבוע בוואטסאפ.',
 };
 const DONE_PENDING = 'אשלח לך אישור בוואטסאפ בהקדם 🤍';
 const MY = {
@@ -459,15 +462,31 @@ function SumScreen({ svc, date, min }) {
   const ph = normalizePhone(me.phone);
   const ok = !Object.keys(checkMe(me, todayYmd()).errors).length;
   useEffect(() => { if (!ok) go(`me/${svc.id}/${date}/${min}`, { replace: true }); }, []);
+  const [siteKey, setSiteKey] = useState(live && CFG.captchaSiteKey ? CFG.captchaSiteKey : null);
+  const capEl = useRef(null);
+  const cap = useRef(null);
+  useEffect(() => {
+    if (!live || siteKey || CFG !== BOOK) return undefined;   // ההגדרות של השרת כבר נטענו בדרך לכאן: בלי קריאה נוספת
+    let on = true;
+    live.load().then((x) => { if (!on) return; CFG = x.cfg; if (x.cfg.captchaSiteKey) setSiteKey(x.cfg.captchaSiteKey); }, () => {});
+    return () => { on = false; };
+  }, []);
+  useEffect(() => {
+    if (!siteKey || !capEl.current) return undefined;
+    cap.current = mountCaptcha(capEl.current, siteKey);
+    return () => { if (cap.current) cap.current.destroy(); cap.current = null; };
+  }, [siteKey]);
   const book = async () => {
     if (busy) return;
     setBusy(true);
     setError(null);
     if (live) {
       const req = { serviceId: svc.id, date, startMin: min, name: me.name, phone: me.phone, birthDate: me.birthDate || null };
-      const r = await live.book({ ...req, key: attemptKey(req) });
+      const captcha = cap.current ? await cap.current.token() : null;
+      const r = await live.book({ ...req, key: attemptKey(req), ...(captcha ? { captcha } : {}) });
       if (r.ok) { writeDone(r.appointment); go(`done/${r.appointment.token}`, { replace: true }); return; }
-      setError(r.code === 'slot_taken' ? 'slot' : r.code === 'limit' ? 'limit' : 'other');
+      if (cap.current) cap.current.reset();   // אסימון משמש פעם אחת
+      setError(r.code === 'slot_taken' ? 'slot' : r.code === 'limit' ? 'limit' : r.code === 'captcha' ? 'captcha' : 'other');
       setBusy(false);
       return;
     }
@@ -489,6 +508,7 @@ function SumScreen({ svc, date, min }) {
     ${error === 'slot' && html`<${Notice} kind="warn" title="השעה הזאת כבר נתפסה">אפשר לבחור שעה אחרת.</${Notice}>`}
     ${error === 'limit' && html`<${Notice} title=${TEXT.limit} />`}
     ${error === 'other' && html`<${Notice} kind="danger" title="התור לא נשמר">אפשר לנסות שוב.</${Notice}>`}
+    ${error === 'captcha' && html`<${Notice} kind="warn" title=${TEXT.captchaTitle}>${TEXT.captchaText}</${Notice}>`}
     <div class="card bk-sum">
       ${row('טיפול', nameOf(svc.name))}
       ${row('יום', fmtDateLong(date))}
@@ -499,6 +519,7 @@ function SumScreen({ svc, date, min }) {
       ${row('טלפון', formatPhone(ph), true)}
       ${me.birthDate && row('תאריך לידה', fmtBirth(me.birthDate))}
     </div>
+    ${siteKey && html`<div class="bk-captcha" ref=${capEl}></div>`}
   </${Shell}>`;
 }
 

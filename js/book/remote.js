@@ -69,6 +69,7 @@ export function pageConfig(base, open) {
     minGapMin: pick('minGapMin'),
     showSeries: true,   // סדרה מגיעה מהשרת רק כשמותר להציג אותה
     hidden: [],
+    captchaSiteKey: typeof o.captchaSiteKey === 'string' && /^[0-9A-Za-z_-]{10,100}$/.test(o.captchaSiteKey) ? o.captchaSiteKey : null,
     whatsappOnly: svcs.filter((s) => s.mode === 'whatsapp').map((s) => s.id),
     blockMin: Object.fromEntries(svcs.filter((s) => Number(s.lengthMin) > 0).map((s) => [s.id, Number(s.lengthMin)])),
   };

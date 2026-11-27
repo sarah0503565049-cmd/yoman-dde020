@@ -259,6 +259,8 @@ html.bk-noscroll, html.bk-noscroll body { overflow: hidden; }
 .bk-sum { padding: 0; gap: 0; overflow: hidden; }
 .bk-sum-row { display: flex; align-items: baseline; gap: var(--g2); padding: 12px var(--pad); }
 .bk-sum-row + .bk-sum-row { border-top: 1px solid var(--line); }
+
+.bk-captcha { width: 100%; }
 .bk-sum-k { flex: none; width: 5.2em; white-space: nowrap; font-size: var(--fs-sub); color: var(--ink); }
 .bk-sum-v { flex: 1; min-width: 0; font-weight: 600; color: var(--espresso); text-align: start; font-variant-numeric: tabular-nums; }
 .bk-sum-v[dir='ltr'] { text-align: right; }
