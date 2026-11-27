@@ -318,13 +318,14 @@ export function incomeSeries(appts, today, opt = {}) {
   const fill = (u, list) => {
     const byKey = new Map(list.map((b) => [b.key, b]));
     const upTo = imported && imported.upTo;
-    const isImported = (k) => u === 'month' && upTo && k <= upTo;
+    const hasMonth = (k) => !!(imported && imported.months && imported.months[k] != null);
+    const isImported = (k) => u === 'month' && upTo && k <= upTo && hasMonth(k);
     let gap = false;
     for (const a of appts || []) {
       if (a.status === 'paid') {
         const pd = payDate(a);
         const b = byKey.get(keyOf(u, pd));
-        if (!b || (upTo && pd.slice(0, 7) <= upTo && u === 'month')) continue;
+        if (!b || isImported(pd.slice(0, 7))) continue;
         for (const l of paymentLines(a, servicesById)) {
           if (category && (l.tip || catOf(l, servicesById) !== category)) continue;
           b.paidAg += l.totalAg;

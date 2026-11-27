@@ -20,6 +20,7 @@ export function needsInvoice(a, settings) {
   if (!a || a.status !== 'paid' || !a.payment) return false;
   const p = a.payment;
   if (String(p.invoiceNo || '').trim()) return false;
+  if (p.source === 'tiffulit') return false;
   const from = settings && settings.invoicesFrom;
   if (!isYmd(from)) return false;
   if (!p.method || growMethodsOf(settings).includes(p.method)) return false;
