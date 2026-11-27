@@ -7,7 +7,6 @@ import { Page, Empty, Notice, Loader, OverlayHost, Boundary } from './ui/bits.js
 import { Icon } from './ui/icons.js';
 import { boot } from './boot.js';
 
-
 const modules = new Map();
 
 function screenEntry(file) {
@@ -51,7 +50,6 @@ function ScreenHost({ r }) {
   </${Boundary}>`;
 }
 
-
 function TabBar({ active }) {
   const onTap = (e, t) => {
     if (t.id !== active) return; // מעבר רגיל דרך הקישור
@@ -68,7 +66,6 @@ function TabBar({ active }) {
     </div>
   </nav>`;
 }
-
 
 function App() {
   const r = useRoute();
@@ -112,7 +109,6 @@ boot({ root, startApp, fail: () => render(html`<${BootError} />`, root) }).catch
   console.error('העלייה נכשלה', err);
   render(html`<${BootError} />`, root);
 });
-
 
 const secure = location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname);
 if ('serviceWorker' in navigator && secure) {

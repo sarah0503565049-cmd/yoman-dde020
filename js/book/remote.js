@@ -48,7 +48,6 @@ export function createBookRemote(client) {
   };
 }
 
-
 export function servicesOf(open) {
   return (open.services || []).map((s) => ({
     id: s.id, name: s.name, shortName: s.shortName, category: s.category, kind: s.kind || 'treatment',
@@ -137,7 +136,6 @@ export function createRemoteSource(remote, base, { maxAgeMs = 60000, clock = () 
     },
   };
 }
-
 
 const isMine = (a) => !!(a && typeof a.date === 'string' && Number.isFinite(a.startMin) && Number.isFinite(a.durationMin)
   && typeof a.status === 'string' && Array.isArray(a.items) && a.can && typeof a.can === 'object');

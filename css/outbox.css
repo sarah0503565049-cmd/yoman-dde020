@@ -13,3 +13,7 @@
 .ob-line-text { flex: 1; min-width: 0; font-weight: 700; text-align: start; }
 .ob-skip { min-width: 96px; }
 .ob-item .msg-bubble { text-align: justify; text-wrap: pretty; }
+
+.ob-auto { gap: var(--g2); }
+.ob-open { margin: 0; padding-inline-start: 20px; color: var(--ink); font-size: var(--fs-sub); text-align: start; }
+.ob-open li { margin: 2px 0; }

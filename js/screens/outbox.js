@@ -6,7 +6,8 @@ import { useData, useNow, useSessionState } from '../ui/hooks.js';
 import { getStore } from '../data/store.js';
 import { addDays, fmtTime, fmtDayMonth } from '../lib/time.js';
 import { computeOutbox, defaultLinkFor, activation, markFor, markPatch } from '../lib/outbox.js';
-import { manualSender } from '../lib/senders.js';
+import { manualSender, apiState, sendsItself } from '../lib/senders.js';
+import { getMessage } from '../lib/messages.js';
 
 async function load(s) {
   const [settings, clients, appointments] = await Promise.all([s.getSettings(), s.listClients(), s.listAppointments({ includeCancelled: true })]);
@@ -51,7 +52,13 @@ async function markItem(it, via) {
   }
 }
 
-function Item({ it, kind, today, opened, setOpened }) {
+const failedNote = (f) => (f.unsure
+  ? (f.partsSent ? 'החלק הראשון יצא לבד, ולא בטוח שההמשך יצא. כדאי לבדוק בצ\'אט בוואטסאפ לפני ששולחים ביד'
+    : 'לא בטוח שיצאה לבד. כדאי לבדוק בצ\'אט בוואטסאפ לפני ששולחים ביד')
+  : f.partsSent ? 'החלק הראשון כבר יצא לבד, אז ביד שולחים רק את ההמשך'
+    : 'לא יצאה לבד, ולכן צריך לשלוח אותה ביד');
+
+function Item({ it, kind, today, opened, setOpened, failed = null }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const asking = !!opened[it.key];
@@ -75,13 +82,15 @@ function Item({ it, kind, today, opened, setOpened }) {
     try { await navigator.clipboard.writeText(it.text); toast('הטקסט הועתק'); } catch { toast('אי אפשר להעתיק מכאן'); }
   };
 
-  const sub = kind === 'later'
-    ? (it.held ? `מחכה לצאת השבת או החג, מ-${fmtTime(it.availableAt.min)}` : `מגיעה היום ב-${fmtTime(it.dueAt.min)}`)
-    : `הגיעה לשליחה: ${whenLabel(it.dueAt, today)}`;
+  const sub = kind === 'auto' ? 'יוצאת לבד בוואטסאפ, בדקות הקרובות'
+    : kind === 'later'
+      ? (it.held ? `מחכה לצאת השבת או החג, מ-${fmtTime(it.availableAt.min)}` : `מגיעה היום ב-${fmtTime(it.dueAt.min)}`)
+      : `הגיעה לשליחה: ${whenLabel(it.dueAt, today)}`;
 
   return html`<${Card} class="ob-item" data-key=${it.key}>
     <div class="ob-head"><span class="ob-name">${it.clientName}</span><${Tag} tone=${kind === 'blocked' ? 'gold' : 'olive'}>${it.title}</${Tag}></div>
     <p class="ob-sub">${sub}</p>
+    ${failed && html`<${Notice} kind="warn">${failedNote(failed)}</${Notice}>`}
     ${kind === 'blocked' && html`<${Notice} kind="warn">${it.reason}</${Notice}>`}
     <${TextButton} class="ob-toggle" onClick=${() => setOpen(!open)} aria-expanded=${open ? 'true' : 'false'}>${open ? 'הסתרת הטקסט' : 'הצגת הטקסט'}</${TextButton}>
     ${open && html`<${Bubble} text=${it.text} />`}
@@ -92,7 +101,7 @@ function Item({ it, kind, today, opened, setOpened }) {
       : html`<${Button} href=${prep.href} target="_blank" rel="noopener" icon="whatsapp"
           onClick=${() => setOpened((o) => ({ ...o, [it.key]: 1 }))}>שליחה בוואטסאפ</${Button}>`)}
     ${kind === 'due' && prep.long && html`<${Button} kind="soft" onClick=${copy}>העתקת הטקסט</${Button}>`}
-    ${kind !== 'later' && html`<${TextButton} class="ob-skip" onClick=${skip} disabled=${busy}>דילוג</${TextButton}>`}
+    ${kind !== 'later' && kind !== 'auto' && html`<${TextButton} class="ob-skip" onClick=${skip} disabled=${busy}>דילוג</${TextButton}>`}
   </${Card}>`;
 }
 
@@ -119,6 +128,30 @@ function Activate({ data, now }) {
     <${Button} onClick=${go} disabled=${busy}>הפעלת ההודעות</${Button}>`;
 }
 
+function AutoSend({ st }) {
+  const [busy, setBusy] = useState(false);
+  const rows = st.templates.filter((t, i, a) => a.findIndex((x) => x.msgId === t.msgId) === i);
+  const okIds = new Set(st.templates.filter((t) => t.status === 'approved').map((t) => t.msgId));
+  const open = rows.filter((t) => !okIds.has(t.msgId));
+  const flip = async () => {
+    const turnOn = !st.on;
+    const ok = await confirmSheet(turnOn
+      ? { title: 'להדליק שליחה אוטומטית?', text: 'מעכשיו ההודעות שאושרו במטא יוצאות לבד מהוואטסאפ של הקו הישיר שלך, ואת השאר שולחים ביד כמו היום. לפני שמדליקים, לכבות את התזכורות בתפעולית, אחרת לקוחות יקבלו כל תזכורת פעמיים.', ok: 'כן, להדליק' }
+      : { title: 'לכבות את השליחה האוטומטית?', text: 'כל ההודעות יחזרו לכאן, לשליחה ביד.', ok: 'כן, לכבות' });
+    if (!ok) return;
+    setBusy(true);
+    try { await getStore().saveSettings({ autoSend: turnOn }); toast(turnOn ? 'השליחה האוטומטית דולקת' : 'השליחה האוטומטית כבויה'); } catch (err) { toast(err.message); }
+    setBusy(false);
+  };
+  return html`<${Section} title="שליחה אוטומטית" id="autosend">
+    <${Card} class="ob-auto">
+      <p class="ob-sub">${okIds.size} מתוך ${rows.length} הודעות אושרו במטא${st.alive ? '' : '. השולח לא פעל בחצי השעה האחרונה'}</p>
+      ${open.length > 0 && html`<ul class="ob-open">${open.map((t) => html`<li key=${t.msgId}>${getMessage(t.msgId).title}: ${t.status === 'rejected' ? 'נדחתה' : t.status === 'pending' ? 'ממתינה לאישור' : 'עוד לא נשלחה לאישור'}</li>`)}</ul>`}
+      <${Button} kind=${st.on ? 'soft' : 'primary'} onClick=${flip} disabled=${busy}>${st.on ? 'כיבוי השליחה האוטומטית' : 'הדלקת השליחה האוטומטית'}</${Button}>
+    </${Card}>
+  </${Section}>`;
+}
+
 export default function Outbox() {
   const now = useNow();
   const { data } = useData(load, []);
@@ -128,14 +161,24 @@ export default function Outbox() {
     ${!data ? html`<${Loader} />` : (() => {
       const r = compute(data, now);
       if (!r.active) return html`<${Activate} data=${data} now=${now} />`;
-      const list = (items, kind) => items.map((it) => html`<${Item} key=${it.key} it=${it} kind=${kind} today=${now.today} opened=${opened} setOpened=${setOpened} />`);
+      const st = apiState(data.settings);
+      const auto = r.due.filter((it) => sendsItself(it, st));
+      const manual = r.due.filter((it) => !sendsItself(it, st));
+      const list = (items, kind) => items.map((it) => html`<${Item} key=${it.key} it=${it} kind=${kind} today=${now.today} opened=${opened} setOpened=${setOpened}
+        failed=${(kind === 'due' && st.on && st.failed.get(it.key)) || null} />`);
       return html`
-        <${Notice} kind="info">לוחצים על שליחה בוואטסאפ, הטקסט נפתח מוכן, ושולחים משם.</${Notice}>
+        ${st.on && st.alive
+          ? html`<${Notice} kind="info">ההודעות שאושרו במטא יוצאות לבד בוואטסאפ. כאן למטה רק מה שצריך לשלוח ביד.</${Notice}>`
+          : st.on
+            ? html`<${Notice} kind="warn" title="השליחה האוטומטית לא פעלה בחצי השעה האחרונה">לכן כל ההודעות כאן לשליחה ביד, כמו קודם.</${Notice}>`
+            : html`<${Notice} kind="info">לוחצים על שליחה בוואטסאפ, הטקסט נפתח מוכן, ושולחים משם.</${Notice}>`}
         <${Section} title="לשלוח עכשיו" id="due">
-          ${r.due.length ? list(r.due, 'due') : html`<${Empty} text="אין הודעות לשליחה עכשיו" />`}
+          ${manual.length ? list(manual, 'due') : html`<${Empty} text="אין הודעות לשליחה עכשיו" />`}
         </${Section}>
+        ${auto.length > 0 && html`<${Section} title="יוצאות לבד" id="auto">${list(auto, 'auto')}</${Section}>`}
         ${r.later.length > 0 && html`<${Section} title="בהמשך היום" id="later">${list(r.later, 'later')}</${Section}>`}
-        ${r.notSendable.length > 0 && html`<${Section} title="לא ניתן לשלוח" id="blocked">${list(r.notSendable, 'blocked')}</${Section}>`}`;
+        ${r.notSendable.length > 0 && html`<${Section} title="לא ניתן לשלוח" id="blocked">${list(r.notSendable, 'blocked')}</${Section}>`}
+        ${st.seen && html`<${AutoSend} st=${st} />`}`;
     })()}
   </${Page}>`;
 }
@@ -144,7 +187,8 @@ export function OutboxLine() {
   const now = useNow();
   const { data } = useData(load, []);
   if (!data) return null;
-  const n = compute(data, now).due.length;
+  const st = apiState(data.settings);
+  const n = compute(data, now).due.filter((it) => !sendsItself(it, st)).length;
   if (!n) return null;
   return html`<${Card} href="/outbox" class="ob-line">
     <span class="ob-line-icon" aria-hidden="true"><${Icon} name="whatsapp" size=${24} /></span>
