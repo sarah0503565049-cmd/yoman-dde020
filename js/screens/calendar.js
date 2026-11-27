@@ -10,6 +10,7 @@ import { expandBlocks } from '../lib/recur.js';
 import { layoutDay } from '../lib/lanes.js';
 import {
   STATUS, apptEnd, apptTotal, apptTravel, apptVisual, clinicRanges, findConflicts, firstVisitIds, gridRange, isActive, isClosed, textOn,
+  forLine, nameParts, whoOf,
 } from '../lib/model.js';
 
 const ROW = { week: 24, day: 28 };   // גובה של 15 דקות
@@ -71,7 +72,7 @@ function apptInfo(a, ctx) {
   const full = ctx.names.get(a.clientId) || 'לקוח/ה';
   const item = (a.items && a.items[0]) || null;
   const color = (item && item.color) || '#C9BBA6';
-  const label = [full, range(a.startMin, a.durationMin), (a.items || []).map((it) => it.name).join(' + '),
+  const label = [whoOf(full, a), range(a.startMin, a.durationMin), (a.items || []).map((it) => it.name).join(' + '),
     STATUS[a.status] ? STATUS[a.status].label : ''].filter(Boolean).join(', ');
   return { vis, full, item, color, label };
 }
@@ -97,14 +98,26 @@ function WeekAppt(ev, ctx) {
   const pending = vis.tone === 'pending';
   const narrow = ctx.colW / ev.lanes < 34;
   const innerW = (ctx.colW - 1) / ev.lanes - 2 - (narrow ? 2 : 4) - (pending ? 4 : 0);
-  const firstName = info.full.split(/\s+/)[0];
+  const [first = info.full, family = ''] = nameParts(info.full);
   let rest = Math.floor((h - 4 - (pending ? 4 : 0) - NAME_LH) / LINE_LH);
+  const firstName = family && rest < 1 ? info.full : first;
   const nameW = firstName.length * 7;
   const marksW = (vis.star ? 12 : 0) + (vis.thumb ? 13 : 0);
   const marksInline = !marksW || nameW + marksW <= innerW || rest < 1;
   if (!marksInline) rest -= 1;
 
   const lines = [];
+  if (family && rest > 0) {
+    const f = fitLines(family, Math.min(rest, 2), innerW, 6.4);
+    f.forEach((t) => lines.push({ t, name: true }));
+    rest -= f.length;
+  }
+  const forTxt = forLine(a);
+  if (forTxt && rest > 0) {
+    const f = fitLines(forTxt, Math.min(rest, 3), innerW, 5.8);   // "עבור" + שם פרטי + משפחה, כל אחד בשורה בטור צר
+    f.forEach((t) => lines.push({ t, cls: 'is-for' }));
+    rest -= f.length;
+  }
   if (pending && rest > 0) { lines.push({ t: 'ממתין', strong: true }); rest -= 1; }
   if (vis.free && rest > 0) {
     const f = fitLines('ללא תשלום', Math.min(rest, 2), innerW, 5.8);
@@ -118,7 +131,7 @@ function WeekAppt(ev, ctx) {
       ${marksInline && vis.star && html`<${Star} />`}<span class="cal-ev-t">${firstName}</span>${marksInline && vis.thumb && html`<${Thumb} />`}
     </span>
     ${!marksInline && html`<span class="cal-ev-marks">${vis.star && html`<${Star} />`}${vis.thumb && html`<${Thumb} />`}</span>`}
-    ${lines.map((l) => html`<span class=${'cal-ev-line' + (l.strong ? ' is-strong' : '')}>${l.t}</span>`)}`;
+    ${lines.map((l) => html`<span class=${['cal-ev-line', l.strong && 'is-strong', l.name && 'is-name', l.cls].filter(Boolean).join(' ')}>${l.t}</span>`)}`;
   return apptShell(ev, ctx, inner, h, style, info, narrow ? 'is-narrow' : '');
 }
 
@@ -129,6 +142,7 @@ function DayAppt(ev, ctx) {
   const { h, style } = placeStyle(ev, ctx);
   const when = range(ev.startMin, a.durationMin);
   const names = (a.items || []).map((it) => it.name).join(' + ');
+  const forTxt = forLine(a);
   const money = vis.free ? null : html`<span class="cal-dv-money">${vis.unpaid && html`<span class="cal-dv-coin" title="לא שולם"><${Icon} name="coin" size=${16} /></span>`}${fmtMoney(apptTotal(a))}</span>`;
   const name = html`<span class="cal-dv-name">
     ${vis.star && html`<span class="cal-star" aria-hidden="true"><${Icon} name="star" fill size=${14} /></span>`}<span class="cal-ev-t">${info.full}</span>${vis.thumb && html`<${Thumb} size=${16} />`}
@@ -138,8 +152,9 @@ function DayAppt(ev, ctx) {
     inner = html`<span class="cal-dv-row">${name}<span class="cal-dv-sub is-inline">${when}</span>${money}</span>`;
   } else {
     inner = html`<span class="cal-dv-row">${name}${money}</span>
+      ${forTxt && html`<span class="cal-dv-sub cal-dv-for">${forTxt}</span>`}
       <span class="cal-dv-sub">${when} · ${names}</span>
-      ${h >= 70 && html`<span class="cal-dv-tags">
+      ${h >= (forTxt ? 92 : 70) && html`<span class="cal-dv-tags">
         <${StatusBadge} status=${a.status} compact />
         ${a.source === 'online' && html`<${Tag} tone="olive" compact>נקבע באתר</${Tag}>`}
       </span>`}`;

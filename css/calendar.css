@@ -216,6 +216,13 @@
 .cal-ev-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cal-ev-line { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cal-ev-line.is-strong { font-weight: 700; }
+
+.cal-ev-line.is-name { font-size: 12px; font-weight: 700; }
+.cal-ev.is-narrow .cal-ev-line.is-name { font-size: 11px; }
+.cal-ev.tone-noshow .cal-ev-line.is-name { text-decoration: line-through; }
+
+.cal-ev-line.is-for { font-weight: 400; }
+.cal-dv-sub.cal-dv-for { font-weight: 700; }   
 .cal-ev-marks { display: flex; align-items: center; gap: 2px; height: 13px; }
 
 .cal-star { flex: none; display: inline-flex; color: var(--gold); }

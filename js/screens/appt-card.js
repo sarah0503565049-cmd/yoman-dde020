@@ -10,6 +10,7 @@ import { back as routerBack, go, afterPendingPop } from '../router.js';
 import { getStore } from '../data/store.js';
 import {
   STATUS, CANCELLED_BY, FREE_REASONS, apptTotal, apptDiscount, apptEnd, findConflicts, formatPhone, callReminderOn, callDaysOf, callDate,
+  forLine,
 } from '../lib/model.js';
 import { expandBlocks } from '../lib/recur.js';
 import { fmtDateLong, fmtTime, fmtDuration, todayYmd } from '../lib/time.js';
@@ -314,6 +315,7 @@ export default function ApptCard({ params }) {
           <span class="ac-name-chev" aria-hidden="true"><${Icon} name="chevronEnd" size=${20} /></span>
         </a>`
         : html`<span class="ac-name">לקוח/ה שנמחק/ה</span>`}
+      ${forLine(appt) && html`<div class="ac-for is-usertext">${forLine(appt)}</div>`}
       ${phone && html`<div class="ac-phone">
         <span class="ac-phone-num" dir="ltr">${formatPhone(phone)}</span>
         <${IconButton} icon="phone" label="חיוג" href=${'tel:' + phone} />

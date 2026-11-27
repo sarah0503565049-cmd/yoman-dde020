@@ -14,6 +14,7 @@
 }
 .ac-name-text { flex: 1; min-width: 0; }
 .ac-name-chev { flex: none; display: inline-flex; color: var(--ink); }
+.ac-for { font-weight: 700; color: var(--olive-deep); }   
 .ac-phone { display: flex; align-items: center; gap: var(--g1); }
 .ac-phone-num { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; color: var(--ink); text-align: start; }
 .ac-when { display: flex; flex-direction: column; gap: 2px; }

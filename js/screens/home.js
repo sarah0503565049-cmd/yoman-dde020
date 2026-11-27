@@ -16,7 +16,7 @@ import { InvoiceSheet } from './invoices.js';
 import { invoicesDue, paidOn } from '../lib/invoices.js';
 import { addDays, diffDays, dow, DAY_NAMES, fmtDate, fmtDateLong, fmtDayMonth, fmtTime } from '../lib/time.js';
 import {
-  apptEnd, apptTotal, apptVisual, callsDue, firstVisitIds, isActive, needsNextAppointment,
+  apptEnd, apptTotal, apptVisual, callsDue, firstVisitIds, isActive, needsNextAppointment, whoOf,
 } from '../lib/model.js';
 
 const range = (a) => `${fmtTime(a.startMin)} עד ${fmtTime(apptEnd(a))}`;
@@ -138,6 +138,7 @@ export default function Home() {
   const { settings, appts } = data;
   const clients = new Map(data.clients.map((c) => [c.id, c]));
   const nameOf = (id) => (clients.get(id) && clients.get(id).name) || 'לקוח/ה';
+  const whoAt = (a) => whoOf(nameOf(a.clientId), a);   // "יעל כהן · עבור נועה"
   const first = firstVisitIds(appts);
   const tomorrow = addDays(today, 1);
 
@@ -190,7 +191,7 @@ export default function Home() {
     ${unpaid.length > 0 && html`<${Section} title="לא שולמו" id="unpaid">
       <${Notice} kind="warn" icon="coin">${unpaid.length === 1 ? 'תור אחד שעבר ועוד לא שולם' : `${unpaid.length} תורים שעברו ועוד לא שולמו`}</${Notice}>
       <${List}>
-        ${unpaid.map((a) => html`<${Row} key=${a.id} href=${'/appt/' + a.id} title=${nameOf(a.clientId)}
+        ${unpaid.map((a) => html`<${Row} key=${a.id} href=${'/appt/' + a.id} title=${whoAt(a)}
           sub=${`${fmtDayMonth(a.date)} · ${fmtTime(a.startMin)} · ${treat(a)}`}
           right=${html`<${Money} value=${apptTotal(a)} />`} />`)}
       </${List}>
@@ -211,7 +212,7 @@ export default function Home() {
       <${List}>
         ${calls.map((a) => {
           const c = clients.get(a.clientId);
-          return html`<${SplitRow} key=${a.id} href=${'/appt/' + a.id} title=${nameOf(a.clientId)}
+          return html`<${SplitRow} key=${a.id} href=${'/appt/' + a.id} title=${whoAt(a)}
             sub=${`התור ${whenLabel(a.date, today)} · ${fmtTime(a.startMin)} · ${treat(a)}`}>
             <${IconButton} icon="phone" label="חיוג" href=${'tel:' + (c ? c.phone : '')} />
             <${IconButton} icon="check" label="התקשרתי" onClick=${() => markCalled(a)} />
@@ -239,7 +240,7 @@ export default function Home() {
       ${pending.map((a) => html`<${Card} key=${a.id} class="home-pend">
         <a class="home-pend-link" href=${'#/appt/' + a.id}>
           <span class="row-title">${fmtDateLong(a.date)} · ${range(a)}</span>
-          <span class="row-sub">${nameOf(a.clientId)} · ${treat(a)}</span>
+          <span class="row-sub">${whoAt(a)} · ${treat(a)}</span>
           <span class="inline-row">${a.source === 'online' && html`<${Tag} tone="olive">נקבע באתר</${Tag}>`}<${StatusBadge} status="pending" /></span>
         </a>
         <${Button} onClick=${() => confirmAppt(a)}>אישור התור</${Button}>
@@ -253,7 +254,7 @@ export default function Home() {
           const color = a.items && a.items[0] && a.items[0].color;
           return html`<${Row} key=${a.id} href=${'/appt/' + a.id}
             start=${html`<${Dot} color=${color} />`}
-            title=${html`${vis.star && html`<span class="mark-star" title="ביקור ראשון"><${Icon} name="star" fill size=${16} /></span>`}${nameOf(a.clientId)}`}
+            title=${html`${vis.star && html`<span class="mark-star" title="ביקור ראשון"><${Icon} name="star" fill size=${16} /></span>`}${whoAt(a)}`}
             sub=${`${range(a)} · ${treat(a)}`}
             right=${html`${vis.unpaid && html`<span class="mark-coin" title="לא שולם"><${Icon} name="coin" size=${20} /></span>`}<${StatusBadge} status=${a.status} short />${vis.thumb && html`<span class="mark-thumb" title="אישר/ה הגעה"><${Icon} name="thumb" size=${20} /></span>`}`} />`;
         })}

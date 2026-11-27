@@ -4,7 +4,7 @@ import {
   Page, Section, Button, IconButton, Notice, List, Row, Card, Empty, Loader, StatusBadge, Money,
 } from '../ui/bits.js';
 import { useData } from '../ui/hooks.js';
-import { formatPhone, fmtBirth, apptTotal, apptDiscount, lastNextStep, visitSummary, isPast, isVisit, FREE_REASONS } from '../lib/model.js';
+import { formatPhone, fmtBirth, apptTotal, apptDiscount, lastNextStep, visitSummary, isPast, isVisit, FREE_REASONS, forLine } from '../lib/model.js';
 import { fmtDate, fmtTime, todayYmd, nowMin } from '../lib/time.js';
 import { fmtMoney } from '../ui/bits.js';
 
@@ -76,7 +76,7 @@ export default function ClientCard({ params }) {
       ${upcoming.length === 0
         ? html`<${Empty} text="אין תורים קרובים" />`
         : html`<${List}>${upcoming.map((a) => html`<${Row} key=${a.id} href=${'/appt/' + a.id}
-            title=${fmtDate(a.date) + ' · ' + fmtTime(a.startMin)} sub=${treatmentOf(a)}
+            title=${fmtDate(a.date) + ' · ' + fmtTime(a.startMin)} sub=${[treatmentOf(a), forLine(a)].filter(Boolean).join(' · ')}
             right=${html`<${StatusBadge} status=${a.status} />`} />`)}</${List}>`}
     </${Section}>
 
@@ -88,7 +88,7 @@ export default function ClientCard({ params }) {
             const free = a.status === 'free';
             const counted = a.status !== 'cancelled' && a.status !== 'noshow';
             return html`<${Row} key=${a.id} href=${'/appt/' + a.id}
-              title=${fmtDate(a.date) + ' · ' + fmtTime(a.startMin)} sub=${treatmentOf(a)}
+              title=${fmtDate(a.date) + ' · ' + fmtTime(a.startMin)} sub=${[treatmentOf(a), forLine(a)].filter(Boolean).join(' · ')}
               right=${html`<${StatusBadge} status=${a.status} />`}>
               ${(counted || a.visitNote || a.nextStep || (a.status === 'cancelled' && a.cancelReason)) && html`<div class="visit-extra">
                 ${free && a.freeReason && FREE_REASONS[a.freeReason.kind] && html`<div class="visit-money"><span>${FREE_REASONS[a.freeReason.kind]}</span></div>`}

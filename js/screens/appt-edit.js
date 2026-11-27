@@ -11,7 +11,7 @@ import {
   addDays, dow, DAY_NAMES, fmtDuration, fmtTime, isYmd, nowMin, timeOptions, todayYmd,
 } from '../lib/time.js';
 import {
-  apptTotal, findConflicts, formatPhone, itemsDuration, lastNextStep, returnWeeksOf, validateAppointment,
+  apptTotal, findConflicts, formatPhone, itemsDuration, lastNextStep, returnWeeksOf, validateAppointment, FOR_MAX,
 } from '../lib/model.js';
 import { expandBlocks } from '../lib/recur.js';
 
@@ -89,7 +89,7 @@ function ApptForm({ id, query, data, backTo }) {
     if (appt) {
       init.current = {
         clientId: appt.clientId, items: appt.items.map((it) => ({ ...it })), date: appt.date, startMin: appt.startMin,
-        durationMin: appt.durationMin, durManual: appt.durationMin !== itemsDuration(appt.items), note: appt.note || '', chip: null,
+        durationMin: appt.durationMin, durManual: appt.durationMin !== itemsDuration(appt.items), note: appt.note || '', forName: appt.forName || '', chip: null,
       };
     } else {
       const next = query.next === '1';
@@ -107,7 +107,7 @@ function ApptForm({ id, query, data, backTo }) {
       const svc = query.service ? services.find((x) => x.id === query.service) : null;
       const items = svc ? [itemOf(svc)] : [];
       init.current = {
-        clientId: client, items, date, startMin, durationMin: itemsDuration(items) || 60, durManual: false, note: '', chip,
+        clientId: client, items, date, startMin, durationMin: itemsDuration(items) || 60, durManual: false, note: '', forName: '', chip,
       };
     }
   }
@@ -126,6 +126,7 @@ function ApptForm({ id, query, data, backTo }) {
   const [durationMin, setDurationMin] = useState(i0.durationMin);
   const [durManual, setDurManual] = useState(i0.durManual);
   const [note, setNote] = useState(i0.note);
+  const [forName, setForName] = useState(i0.forName);
   const [picker, setPicker] = useState(false);
   const [pq, setPq] = useState('');
   const [tried, setTried] = useState(false);
@@ -230,7 +231,7 @@ function ApptForm({ id, query, data, backTo }) {
         if (!ok) return;
       }
       const cleanItems = items.map((it) => ({ ...it, price: Number(it.price) || 0 }));
-      const rec = { ...(appt || {}), clientId, date, startMin, durationMin, items: cleanItems, note: note.trim() };
+      const rec = { ...(appt || {}), clientId, date, startMin, durationMin, items: cleanItems, note: note.trim(), forName: forName.replace(/\s+/g, ' ').trim() };
       await s.saveAppointment(rec);
       if (id) { toast('התור עודכן'); back('/appt/' + id); }
       else { toast('התור נשמר'); replace('/cal/week/' + date + '?at=' + startMin); }
@@ -317,6 +318,9 @@ function ApptForm({ id, query, data, backTo }) {
   return html`<${Page} title=${id ? 'עריכת' : 'תור'} em=${id ? 'תור' : 'חדש'} back=${backTo} onSubmit=${save} footer=${footer}>
     ${switchKind}
     ${clientField}
+    ${client && html`<${Field} label="עבור" hint="רק כשהטיפול בשביל מישהו אחר, למשל הבת או האמא.">
+      <${TextInput} value=${forName} onChange=${setForName} maxlength=${FOR_MAX} autocomplete="off" placeholder="שם מלא" />
+    </${Field}>`}
     ${itemsField}
     ${dateField}
     ${timeFields}

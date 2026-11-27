@@ -322,7 +322,19 @@ export function validateAppointment(a) {
   if (!(a.durationMin > 0)) errs.push('חסר משך הזמן');
   if (a.startMin == null || a.startMin < 0 || a.startMin >= 1440) errs.push('חסרה שעת התחלה');
   if (a.startMin != null && a.durationMin > 0 && a.startMin + a.durationMin > 1440) errs.push('התור נגמר אחרי חצות');
+  if (a.forName != null && (typeof a.forName !== 'string' || a.forName.trim().length > FOR_MAX)) errs.push(`בשדה "עבור" עד ${FOR_MAX} תווים`);
   return errs;
+}
+
+export const FOR_MAX = 40;
+export const forNameOf = (a) => String((a && a.forName) || '').replace(/\s+/g, ' ').trim();
+export const forLine = (a) => { const f = forNameOf(a); return f ? 'עבור ' + f : ''; };
+export const whoOf = (name, a) => { const f = forLine(a); return f ? `${name} · ${f}` : String(name || ''); };
+export const lacksLastName = (c) => String((c && c.name) || '').trim().split(/\s+/).filter(Boolean).length === 1;
+export const noFamilyLabel = (n) => (n === 1 ? 'כרטיס אחד בלי שם משפחה' : `${n} כרטיסים בלי שם משפחה`);
+export function nameParts(full) {
+  const w = String(full || '').trim().split(/\s+/).filter(Boolean);
+  return w.length <= 1 ? w : [w[0], w.slice(1).join(' ')];
 }
 
 export function validateBlock(b) {
